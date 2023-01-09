@@ -1,0 +1,6 @@
+absl-py==1.2.0
+black==22.6.0
+flake8==5.0.4
+tqdm==4.64.0
+matplotlib==3.5.3
+scipy==1.9.1
