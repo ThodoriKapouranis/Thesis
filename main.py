@@ -4,6 +4,7 @@ import logging
 import matplotlib
 from absl import app, flags
 import numpy as np
+from config import create_config
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -33,30 +34,6 @@ flags.DEFINE_string('hand_pre', '/workspaces/Thesis/10m_data/coherence/hand_labe
 flags.DEFINE_string('S2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepath of S2-weak labelled data')
 flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
 flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
-
-@dataclass 
-class TrainingConfig:
-    channels: int 
-    model: str
-
-class ConfigError(Exception):
-    """Exception raised for errors in the training configuration
-    
-    Attributes:
-        flag    --  flag the error originates from.
-    """
-    def __init__(self, flag, message="Error creating configuration. Problem flags: "):
-        super().__init__(message + flag)
-
-def create_config(scenario:int, model:str):
-    if scenario not in [1,2,3]:
-        raise ConfigError("scenario")
-    channels = {1:2, 2:4, 3:6}[scenario]
-
-    if model not in ['xgboost', 'unet', 'a-unet']:
-        raise ConfigError("model")
-
-    return TrainingConfig(channels, model)
 
 def main(x):
     config = create_config(FLAGS.scenario, FLAGS.model)

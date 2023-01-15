@@ -1,7 +1,9 @@
 from collections import defaultdict
+from dataclasses import dataclass, field
 import os
 from absl import app, flags
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 FLAGS = flags.FLAGS
 flags.DEFINE_bool("debug", False, "Set logging level to debug")
@@ -15,7 +17,40 @@ flags.DEFINE_string('s2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepat
 flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
 flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
 
-def create_dataset(scenario:int=0):
+@dataclass
+class Dataset:
+    '''
+    Holdout is Sri-Lanka.
+    ? Hand labelled dataset means that the coherence was hand generated rather than using Alaska Satellite Facility's API.
+    '''
+    x_train: np.ndarray
+    y_train: np.ndarray
+    x_holdout: np.ndarray
+    y_holdout: np.ndarray
+    x_hand: np.ndarray
+    y_hand: np.ndarray
+
+    x_val: np.ndarray = field(init=False)
+    y_val: np.ndarray = field(init=False)
+    x_test: np.ndarray = field(init=False)
+    y_test: np.ndarray = field(init=False)
+
+    def __post_init__(self):
+        # 70 : 20 : 10  train | test | val 
+        self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x_train, self.y_train, test_size=0.30)
+        print(self.x_train.shape, self.y_train.shape)
+        
+        self.x_test, self.x_val, self.y_test, self.y_val,  = train_test_split(self.x_test, self.y_test, test_size=0.33)
+    
+    def generate_batches(self):
+        ...
+    
+    def load_batch(self):
+        # Actually this will be different for each training method (Tensorflow vs XGBoost).
+        # Probably better to just let them manipulate this Dataset class instead of doing it here.
+        ...
+        
+def create_dataset(scenario:int=0) -> Dataset:
     '''
     Looks through indexed dataset folders to ensure that it creates a dataset where the same instances are available in every training scenario.
     Returns
@@ -23,8 +58,14 @@ def create_dataset(scenario:int=0):
     --  y_train :   A list of filepaths to TIF files to use for labels
     '''
 
+    holdout_region = "Sri-Lanka"
+
     x_train = []
     y_train = []
+    x_holdout = []
+    y_holdout = []
+    x_hand = []
+    y_hand = []
 
     file_suffixes = {
         's1_co' : '_S1Weak.tif',        # <-- Why is this weak? I thought weak was supposed to mean thresholding on some basis to generate labels
@@ -38,26 +79,38 @@ def create_dataset(scenario:int=0):
 
     files = index_dataset()
     suffixes = []
-    if scenario == 0:
-        suffixes = [file_suffixes['s1_co']]
-    if scenario == 1:
+    hand_suffixes = []
+    if scenario == 0:   # 2 data channels
+        suffixes = [file_suffixes['s1_co']] 
+    if scenario == 1:   # 4 data channels
         suffixes = [file_suffixes['s1_co'], file_suffixes['s1_pre']]
-    if scenario == 2:
-        suffixes = [file_suffixes['s1_co'], file_suffixes['s1_pre'], file_suffixes['coh_co']]
-
-    # use s1_co and hand_co to search other files
+    if scenario == 2:   # 6 data channels.
+        suffixes = [file_suffixes['s1_co'], file_suffixes['s1_pre'], file_suffixes['coh_co'], file_suffixes['coh_pre']]
+        hand_suffixes = suffixes = [file_suffixes['s1_co'], file_suffixes['s1_pre'], file_suffixes['hand_co'], file_suffixes['hand_pre']]
 
     for k in files['coh_co'].keys():
         if files['coh_pre'][k] and files['s2_weak'][k] and files['s1_co'][k] and files['s1_pre'][k]:
-            x_train.append([[k+suf for suf in suffixes]])
-            y_train.append(k+file_suffixes['s2_weak'])
-    
-    for k in files['hand_co'].keys():
-        if files['s2_weak'][k] and files['s1_co'][k] and files['s1_pre'][k]:
-            x_train.append([[k+suf for suf in suffixes]])
-            y_train.append(k+file_suffixes['s2_weak'])
+            
+            if k.split('_')[0]==holdout_region:
+                x_holdout.append([[k+suf for suf in suffixes]])
+                y_holdout.append(k+file_suffixes['s2_weak'])
 
-    return np.array(x_train), np.array(y_train)
+            else:
+                x_train.append([[k+suf for suf in suffixes]])
+                y_train.append(k+file_suffixes['s2_weak'])
+
+    for k in files['hand_co'].keys():
+        if files['hand_pre'][k] and files['s2_weak'][k] and files['s1_co'][k] and files['s1_pre'][k]:
+            
+            if k.split('_')[0]==holdout_region:
+                x_holdout.append([[k+suf for suf in hand_suffixes]])
+                y_holdout.append(k+file_suffixes['s2_weak'])
+
+            else:
+                x_hand.append([[k+suf for suf in hand_suffixes]])
+                y_hand.append(k+file_suffixes['s2_weak'])
+
+    return Dataset( np.array(x_train), np.array(y_train), np.array(x_holdout), np.array(y_holdout), np.array(x_hand), np.array(y_hand) )
 
 def index_dataset():
     '''
@@ -90,12 +143,16 @@ def index_dataset():
     
     return files
 
-
 def main(x):
-    x_train, y_train = create_dataset(scenario=0)
-    # print(x_train)
-    print(x_train.shape, y_train.shape)
-    print(x_train[0])
+    dataset = create_dataset(FLAGS.scenario)
+
+    print('Base dataset', dataset.x_train.shape + dataset.x_val.shape + dataset.x_test.shape)
+    print('Hand dataset', dataset.x_hand.shape, dataset.y_hand.shape)
+    print('Holdout dataset', dataset.x_holdout.shape, dataset.y_holdout.shape)
+
+    print('\n Base train', dataset.x_train.shape, dataset.y_train.shape)
+    print('Base val', dataset.x_val.shape, dataset.y_val.shape)
+    print('Base test', dataset.x_test.shape, dataset.y_test.shape)
 
 if __name__ == "__main__":
     app.run(main)
