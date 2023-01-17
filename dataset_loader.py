@@ -35,6 +35,8 @@ class Dataset:
     x_test: np.ndarray = field(init=False)
     y_test: np.ndarray = field(init=False)
 
+    batches: dict = field(init=False)
+
     def __post_init__(self):
         # 70 : 20 : 10  train | test | val 
         self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x_train, self.y_train, test_size=0.30)
@@ -42,8 +44,21 @@ class Dataset:
         
         self.x_test, self.x_val, self.y_test, self.y_val,  = train_test_split(self.x_test, self.y_test, test_size=0.33)
     
-    def generate_batches(self):
-        ...
+    def generate_batches(self, batch_count:int) -> dict:
+        '''
+        Generates batches under the class attribute 'batches'
+        It is a dictionary of batch idx that map to dictioanies with a 'x' and 'y' key.
+        '''
+        self.batches = {}
+        it = len(self.x_train)/batch_count  # 1000/4 = 250
+        batch_idx = [int(i*it) for i in range(batch_count)] # [0, 250, 500, 750]
+        batch_idx.append(len(self.x_train)) # [0, 250, 500, 750, 1000]
+        for i in range(batch_count):
+            self.batches[i] = {}
+            self.batches[i]['x'] = self.x_train[ batch_idx[i]:batch_idx[i+1] ]
+            self.batches[i]['y'] = self.y_train[ batch_idx[i]:batch_idx[i+1] ]
+
+        return self.batches        
     
     def load_batch(self):
         # Actually this will be different for each training method (Tensorflow vs XGBoost).
@@ -153,6 +168,13 @@ def main(x):
     print('\n Base train', dataset.x_train.shape, dataset.y_train.shape)
     print('Base val', dataset.x_val.shape, dataset.y_val.shape)
     print('Base test', dataset.x_test.shape, dataset.y_test.shape)
+
+    dataset.generate_batches(4)
+
+    for k in dataset.batches.keys():
+        print( dataset.batches[k]['x'].shape, dataset.batches[k]['y'].shape)
+        
+    
 
 if __name__ == "__main__":
     app.run(main)
