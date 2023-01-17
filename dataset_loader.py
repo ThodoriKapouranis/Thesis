@@ -4,18 +4,9 @@ import os
 from absl import app, flags
 import numpy as np
 from sklearn.model_selection import train_test_split
+import xgboost
 
-FLAGS = flags.FLAGS
-flags.DEFINE_bool("debug", False, "Set logging level to debug")
-flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
-flags.DEFINE_string("model", "xgboost", "'xgboost', 'unet', 'a-unet")
-flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
-flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
-flags.DEFINE_string('hand_co', '/workspaces/Thesis/10m_data/coherence/hand_labeled/co_event', 'filepath of handlabelled coevent data')
-flags.DEFINE_string('hand_pre', '/workspaces/Thesis/10m_data/coherence/hand_labeled/pre_event', 'filepath of handlabelled preevent data')
-flags.DEFINE_string('s2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepath of S2-weak labelled data')
-flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
-flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
+from models.xgboost import XGBoost
 
 @dataclass
 class Dataset:
@@ -158,7 +149,20 @@ def index_dataset():
     
     return files
 
-def main(x):
+
+def _test():
+    FLAGS = flags.FLAGS
+    flags.DEFINE_bool("debug", False, "Set logging level to debug")
+    flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
+    flags.DEFINE_string("model", "xgboost", "'xgboost', 'unet', 'a-unet")
+    flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
+    flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
+    flags.DEFINE_string('hand_co', '/workspaces/Thesis/10m_data/coherence/hand_labeled/co_event', 'filepath of handlabelled coevent data')
+    flags.DEFINE_string('hand_pre', '/workspaces/Thesis/10m_data/coherence/hand_labeled/pre_event', 'filepath of handlabelled preevent data')
+    flags.DEFINE_string('s2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepath of S2-weak labelled data')
+    flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
+    flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
+
     dataset = create_dataset(FLAGS.scenario)
 
     print('Base dataset', dataset.x_train.shape + dataset.x_val.shape + dataset.x_test.shape)
@@ -169,12 +173,8 @@ def main(x):
     print('Base val', dataset.x_val.shape, dataset.y_val.shape)
     print('Base test', dataset.x_test.shape, dataset.y_test.shape)
 
-    dataset.generate_batches(4)
-
-    for k in dataset.batches.keys():
-        print( dataset.batches[k]['x'].shape, dataset.batches[k]['y'].shape)
+def main(x):
+    _test()
         
-    
-
 if __name__ == "__main__":
     app.run(main)
