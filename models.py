@@ -1,11 +1,8 @@
-import xgboost as xgb
-from collections import defaultdict
-from dataclasses import dataclass, field
-import os
-from absl import app, flags
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import train_test_split
+import rasterio
+import xgboost as xgb
+from dataclasses import dataclass, field
+from absl import app, flags
 
 @dataclass
 class Batched_XGBoost:
@@ -29,23 +26,45 @@ class Batched_XGBoost:
             
             batch_model = xgb.XGBClassifier(use_label_encoder=False, tree_method='gpu_hist', xgb_model=full_model)
             x, y = self.__load_data(batches[batch_idx])
+            print(x.shape, y.shape)
             batch_model.fit(x, y, xgb_model=None)
             full_model = batch_model
         
         self.model =  full_model
 
-    
+    # Such ugly code...
+    # Better solution is to use a map to read the file names and replace with the squeezed data?
     def __load_data(self, batch:dict):
         '''
         Takes a dictionary with keys {'x': [FILENAMES], 'y': [FILENAMES] } and loads the TIF filenames into an array.
         '''
-        ...
+        channels = 2 # Do we keep channels??? Either way this needs to be a FLAG.scenario option
+        x,y = np.zeros(shape = (len(batch['x']), channels, 512*512)), np.zeros(shape = (len(batch['y']), 512*512))
+
+        for idx, scene in enumerate(batch['y']):
+            for file in scene:
+                data = rasterio.open(file, 'r').read()
+                channels, width, height = data.shape
+                data = np.reshape(data, (channels, width*height) )
+                y[idx,:] = data
+        
+        for idx, scene in enumerate(batch['x']):
+            scene = scene[0]
+            for file in scene:
+                data = rasterio.open(file, 'r').read()
+                channels, width, height = data.shape
+                data = np.reshape(data, (channels, width*height) )
+                x[idx,:,:] = data
+        
+        return x, y
 
 
 def main(x):
     _test(x)
 
 def _test(x):
+    from dataset_loader import Dataset, create_dataset, index_dataset
+
     FLAGS = flags.FLAGS
     flags.DEFINE_bool("debug", False, "Set logging level to debug")
     flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
@@ -58,6 +77,10 @@ def _test(x):
     flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
     flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
 
+    dataset = create_dataset(FLAGS)
+    batches = dataset.generate_batches(8)
+    model = Batched_XGBoost()
+    model.train_in_batches(batches)
     
 
 if __name__ == "__main__":
