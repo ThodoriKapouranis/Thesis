@@ -28,7 +28,6 @@ class Dataset:
     def __post_init__(self):
         # 70 : 20 : 10  train | test | val 
         self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x_train, self.y_train, test_size=0.30)
-        print(self.x_train.shape, self.y_train.shape)
         
         self.x_test, self.x_val, self.y_test, self.y_val,  = train_test_split(self.x_test, self.y_test, test_size=0.33)
     

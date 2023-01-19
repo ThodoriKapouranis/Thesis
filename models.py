@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import rasterio
 import xgboost as xgb
@@ -24,28 +25,39 @@ class Batched_XGBoost:
 
         for batch_idx in batches.keys():
             
-            batch_model = xgb.XGBClassifier(use_label_encoder=False, tree_method='gpu_hist', xgb_model=full_model)
+            batch_model = xgb.XGBClassifier(use_label_encoder=False, tree_method='gpu_hist')
+            
+            t1 = time.time()
             x, y = self.__load_data(batches[batch_idx])
-            print(x.shape, y.shape)
-            batch_model.fit(x, y, xgb_model=None)
+            print( f'Batch {batch_idx} finished loading in {time.time() - t1} seconds')
+            
+            batch_model.fit(x, y, xgb_model=full_model)
             full_model = batch_model
+            print(f'Finished batch {batch_idx}')
         
         self.model =  full_model
 
-    # Such ugly code...
+    def __remap_labels(self, chip):
+        # Incoming label chip should be size (1, 512x512)
+        invalids = chip[0][:] == -1
+        chip[0][invalids] = 0
+        return chip
+    
     # Better solution is to use a map to read the file names and replace with the squeezed data?
     def __load_data(self, batch:dict):
         '''
         Takes a dictionary with keys {'x': [FILENAMES], 'y': [FILENAMES] } and loads the TIF filenames into an array.
         '''
+
         channels = 2 # Do we keep channels??? Either way this needs to be a FLAG.scenario option
-        x,y = np.zeros(shape = (len(batch['x']), channels, 512*512)), np.zeros(shape = (len(batch['y']), 512*512))
+        x,y = np.zeros(shape = (len(batch['x']), channels*512*512)), np.zeros(shape = (len(batch['y']), 512*512))
 
         for idx, scene in enumerate(batch['y']):
             for file in scene:
                 data = rasterio.open(file, 'r').read()
                 channels, width, height = data.shape
                 data = np.reshape(data, (channels, width*height) )
+                data = self.__remap_labels(data)
                 y[idx,:] = data
         
         for idx, scene in enumerate(batch['x']):
@@ -53,11 +65,11 @@ class Batched_XGBoost:
             for file in scene:
                 data = rasterio.open(file, 'r').read()
                 channels, width, height = data.shape
-                data = np.reshape(data, (channels, width*height) )
-                x[idx,:,:] = data
+                data = data.flatten()
+                x[idx,:] = data
         
+        print(x.shape, y.shape)
         return x, y
-
 
 def main(x):
     _test(x)
