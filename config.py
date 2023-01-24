@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from models import Batched_XGBoost
 
 
 class ConfigError(Exception):
@@ -14,6 +15,11 @@ class ConfigError(Exception):
 class TrainingConfig:
     channels: int 
     model: str
+
+    def initialize_model(self) -> any:
+        if self.model=='xgboost':
+            return Batched_XGBoost()
+
 
 def create_config(scenario:int, model:str):
     if scenario not in [1,2,3]:

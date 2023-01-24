@@ -26,14 +26,21 @@ class Batched_XGBoost:
         for batch_idx in batches.keys():
             
             batch_model = xgb.XGBClassifier(use_label_encoder=False, tree_method='gpu_hist')
+            batch_model.verbosity = 3
+            batch_model.max_depth = 6
+            batch_model.learning_rate = 0.3
+            batch_model.n_estimators = 100
             
             t1 = time.time()
             x, y = self.__load_data(batches[batch_idx])
             print( f'Batch {batch_idx} finished loading in {time.time() - t1} seconds')
             
-            batch_model.fit(x, y, xgb_model=full_model)
+            print("Starting training...")
+            t1 = time.time()
+            batch_model.fit(x, y)
+            print(f'Finished Training w/ batch {batch_idx} in {time.time() - t1} seconds')
+
             full_model = batch_model
-            print(f'Finished batch {batch_idx}')
         
         self.model =  full_model
 
@@ -90,7 +97,7 @@ def _test(x):
     flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
 
     dataset = create_dataset(FLAGS)
-    batches = dataset.generate_batches(8)
+    batches = dataset.generate_batches(20)
     model = Batched_XGBoost()
     model.train_in_batches(batches)
     
