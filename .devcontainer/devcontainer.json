@@ -13,7 +13,7 @@
 		"--gpus",
 		"all",
 			"--shm-size",
-			"10G"
+			"24G"
 		]
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
