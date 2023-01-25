@@ -4,9 +4,10 @@ import logging
 import matplotlib
 from absl import app, flags
 import numpy as np
+
 from config import TrainingConfig, create_config
-from dataset_loader import create_dataset
-from models import Batched_XGBoost
+from DatasetHelpers.Dataset import create_dataset
+from Models.XGB import Batched_XGBoost
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 

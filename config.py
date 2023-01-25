@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from models import Batched_XGBoost
+from Models.XGB import Batched_XGBoost
 
 
 class ConfigError(Exception):

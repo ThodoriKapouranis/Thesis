@@ -13,13 +13,13 @@ class Batched_XGBoost:
         '''
         This function trains xgboost models in batches in order to fit in the GPU's memory.
         The files are only loaded in memory once they are needed for training.
+        
         Arguments:
-        --  x_train :   A list of filepaths to TIF files to use for training
-        --  y_train :   A list of filepaths to TIF files to use for labels
+        --  batches : a dictionary holding 'x' and 'y' keys that map to a list of training files names for every chip
 
         Returns:
         --  model   :   Trained XGBoost model using the xgboost library
-        --  hist    :   training info?
+        --?  hist    :   training info
         '''
         full_model = None
 
@@ -29,7 +29,7 @@ class Batched_XGBoost:
             batch_model.verbosity = 3
             batch_model.max_depth = 6
             batch_model.learning_rate = 0.3
-            batch_model.n_estimators = 100
+            batch_model.n_estimators = 1
             
             t1 = time.time()
             x, y = self.__load_data(batches[batch_idx])
@@ -37,9 +37,8 @@ class Batched_XGBoost:
             
             print("Starting training...")
             t1 = time.time()
-            batch_model.fit(x, y)
+            batch_model.fit(x, y, verbose=True, xgb_model=full_model)
             print(f'Finished Training w/ batch {batch_idx} in {time.time() - t1} seconds')
-
             full_model = batch_model
         
         self.model =  full_model
@@ -57,20 +56,21 @@ class Batched_XGBoost:
         '''
 
         channels = 2 # Do we keep channels??? Either way this needs to be a FLAG.scenario option
-        x,y = np.zeros(shape = (len(batch['x']), channels*512*512)), np.zeros(shape = (len(batch['y']), 512*512))
+        x = np.zeros(shape = (len(batch['x']), channels*512*512))
+        y =  np.zeros(shape = (len(batch['y']), 512*512))
 
-        for idx, scene in enumerate(batch['y']):
-            for file in scene:
-                data = rasterio.open(file, 'r').read()
+        for idx, scenes in enumerate(batch['y']):
+            for scene in scenes:
+                data = rasterio.open(scene, 'r').read()
                 channels, width, height = data.shape
                 data = np.reshape(data, (channels, width*height) )
                 data = self.__remap_labels(data)
                 y[idx,:] = data
         
-        for idx, scene in enumerate(batch['x']):
-            scene = scene[0]
-            for file in scene:
-                data = rasterio.open(file, 'r').read()
+        for idx, scenes in enumerate(batch['x']):
+            scenes = scenes[0]
+            for scene in scenes:
+                data = rasterio.open(scene, 'r').read() # C, W, H
                 channels, width, height = data.shape
                 data = data.flatten()
                 x[idx,:] = data
@@ -82,7 +82,7 @@ def main(x):
     _test(x)
 
 def _test(x):
-    from dataset_loader import Dataset, create_dataset, index_dataset
+    from DatasetHelpers.Dataset import Dataset, create_dataset, index_dataset
 
     FLAGS = flags.FLAGS
     flags.DEFINE_bool("debug", False, "Set logging level to debug")
@@ -100,7 +100,6 @@ def _test(x):
     batches = dataset.generate_batches(20)
     model = Batched_XGBoost()
     model.train_in_batches(batches)
-    
 
 if __name__ == "__main__":
     app.run(main)
