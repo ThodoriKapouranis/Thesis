@@ -55,8 +55,8 @@ class UNetEncoderBlock(tf.keras.layers.Layer):
     #! Need to add skip connection output
     def __init__(self, filters:int, kernel_size:tuple, pool_size:tuple, name="UNet-Encoder", **kwargs):
         super().__init__(name=name, **kwargs)
-        self.layer1 = Conv2D(filters=filters, kernel_size=kernel_size, padding='same', activation='ReLU')
-        self.layer2 = Conv2D(filters=filters, kernel_size=kernel_size, padding='same', activation='ReLU')
+        self.layer1 = Conv2D(filters=filters, kernel_size=kernel_size, activation='ReLU')
+        self.layer2 = Conv2D(filters=filters, kernel_size=kernel_size, activation='ReLU')
         self.layer3 = MaxPooling2D(pool_size=pool_size) if pool_size else None
 
     def call(self, inputs):
@@ -71,9 +71,9 @@ class UNetDecoderBlock(tf.keras.layers.Layer):
     #! Need to add skip connection input
     def __init__(self, filters:int, kernel_size:tuple, pool_size:tuple, name="UNet-Decoder", **kwargs):
         super().__init__(name=name, **kwargs)
-        self.layer1 = Conv2DTranspose(filters, kernel_size=kernel_size, strides=pool_size, padding='same', activation='ReLU')
-        self.layer2 = Conv2D(filters=filters/2, kernel_size=kernel_size, padding='same', activation='ReLU')
-        self.layer3 = Conv2D(filters=filters/2, kernel_size=kernel_size, padding='same', activation='ReLU')
+        self.layer1 = Conv2DTranspose(filters, kernel_size=kernel_size, strides=pool_size, activation='ReLU')
+        self.layer2 = Conv2D(filters=filters/2, kernel_size=kernel_size, activation='ReLU')
+        self.layer3 = Conv2D(filters=filters/2, kernel_size=kernel_size, activation='ReLU')
 
     def call(self, inputs):
         inputs = self.layer1(inputs)
@@ -81,7 +81,7 @@ class UNetDecoderBlock(tf.keras.layers.Layer):
         return self.layer3(inputs)
 
 def main():
-    input = Input( (512,512,3) )
+    input = Input( (572,572,3) )
 
     x = UNetEncoderBlock(name='EncBlk-1', filters=64, kernel_size=(3,3), pool_size=(2,2))(input)
     x = UNetEncoderBlock(name='EncBlk-2', filters=128, kernel_size=(3,3), pool_size=(2,2))(x)
@@ -97,7 +97,7 @@ def main():
 
     # Segmentation layer
     classes = 2
-    x = Conv2D(name='Dense', filters=classes, kernel_size=(1,1), padding='same')(x)
+    x = Conv2D(name='Dense', filters=classes, kernel_size=(1,1))(x)
 
     model = tf.keras.Model(inputs=input, outputs=x, name="UNet (just encoder actually)")
     print(model.summary())
