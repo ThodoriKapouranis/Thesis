@@ -105,7 +105,7 @@ def convert_to_tfds(ds:Dataset) -> tf.data.Dataset:
     '''
     # Samples will be converted to a list of string paths where the last string is the test label path
     train_samples = []
-    for x, y in zip(ds.x_train, ds.y_train): train_samples.append([*x, *y])
+    for x, y in zip(ds.x_train, ds.y_train): train_samples.append((*x, *y))
     
     train_samples = np.asarray(train_samples)
 
@@ -115,32 +115,34 @@ def convert_to_tfds(ds:Dataset) -> tf.data.Dataset:
 
 def read_sample(data_path:str) -> tuple:
     # Used by tf_read_sample to show tensorflow how to load our data in its own automatic batching process.
-    path = data_path.numpy() # 0--> train , 1--> test 
-    img = np.ndarray(dtype=np.float32)
-    tgt = np.ndarray(dtype=np.float32)
+    path = data_path.numpy() # 0:-1 --> training paths
+    img = list()
+    tgt = list()
 
-    for idx, train_path in path[0]:
+    for idx, train_path in path[0:-1]:
         with rasterio.open(train_path) as src:
             tmp_img = src.read()
             print(tmp_img.shape)
-            img = np.append(img, tmp_img, axis=0)
+            img.append(tmp_img)
     
-    for tgt_path in path[1]:
+    for tgt_path in path[-1]:
         with rasterio.open(tgt_path) as src:
             tgt = src.read()
 
-    print(img.shape)
-    img = np.transpose(img, axes=(1,2,0)) # CHW -> HWC
-    tgt = np.transpose(img, axes=(1,2,0))
-    channels = img.shape[-1]
-    
-    return (img, tgt, channels)
+    img = np.asarray(img)
+    img = np.reshape(img, (512, 512, -1))
+
+    tgt = np.asarray(tgt)
+    tgt = np.reshape(tgt, (512, 512, -1))
+
+    channels = int(img.shape[-1])
+    return (img, tgt)
 
 @tf.function
 def tf_read_sample(data_path:str) -> dict:
-    [img, tgt, channels] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32, tf.int32])
-    img.set_shape((512, 512, channels))
-    tgt.set_shape((512, 512, channels))
+    [img, tgt] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32])
+    img.set_shape((512, 512, 2))
+    tgt.set_shape((512, 512, 1))
     return {'image':img, 'target':tgt}
 
 def create_dataset(FLAGS:flags.FLAGS) -> Dataset:
