@@ -5,12 +5,12 @@ from keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, Input, Dense, co
 
 from keras_unet_collection import layer_utils
 
-class UNetPipeline:
+class TensorFlowDatasetConverter:
     '''
     Dataloader meant to be used for the UNet model.
     Converts the raw filenames dataset created by DatasetHelpers.create_dataset() to usable data.
     '''
-    def load_data(self, X, Y):
+    def load_data(X, Y):
         ...
 
 @dataclass
