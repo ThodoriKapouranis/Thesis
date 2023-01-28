@@ -103,15 +103,15 @@ def convert_to_tfds(ds:Dataset) -> tf.data.Dataset:
         --  val_ds  :     tf.data.Dataset
         --  test_d  :     tf.data.Dataset
     '''
-    print(ds.x_train.shape)
-    print(ds.y_train.shape)
-    # train_samples = np.ndarray([(x, y) for x,y in zip(ds.x_train, ds.y_train)])
-    # print(train_samples.shape)
-    # print(train_samples[0])
+    # Samples will be converted to a list of string paths where the last string is the test label path
+    train_samples = []
+    for x, y in zip(ds.x_train, ds.y_train): train_samples.append([*x, *y])
+    
+    train_samples = np.asarray(train_samples)
 
     train_ds = tf.data.Dataset.from_tensor_slices(train_samples)
     train_ds = train_ds.map(tf_read_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    return  train_ds
+    return train_ds
 
 def read_sample(data_path:str) -> tuple:
     # Used by tf_read_sample to show tensorflow how to load our data in its own automatic batching process.
@@ -261,7 +261,7 @@ def index_dataset(FLAGS:flags.FLAGS):
 def _test():
     FLAGS = flags.FLAGS
     flags.DEFINE_bool("debug", False, "Set logging level to debug")
-    flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
+    flags.DEFINE_integer("scenario", 2, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
     flags.DEFINE_string("model", "xgboost", "'xgboost', 'unet', 'a-unet")
     flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
     flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
