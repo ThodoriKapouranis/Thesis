@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 import tensorflow as tf
-from keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, Input, Dense
+from keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, Input, Dense, concatenate
 # Could use https://github.com/yingkaisha/keras-unet-collection
 
 from keras_unet_collection import layer_utils
@@ -52,48 +52,58 @@ class UNet:
         
 class UNetEncoderBlock(tf.keras.layers.Layer):
     # UNet Encoder block to be used with the keras layers functional api
-    #! Need to add skip connection output
+    # Returns tuple (output, skip)
+    #   -- output - Final output of the layer. Either includes a max pooling or not.
+    #   -- skip   - Final output of the Conv2d layers, used as skip connection in the decoder.
+    
     def __init__(self, filters:int, kernel_size:tuple, pool_size:tuple, name="UNet-Encoder", **kwargs):
         super().__init__(name=name, **kwargs)
-        self.layer1 = Conv2D(filters=filters, kernel_size=kernel_size, activation='ReLU')
-        self.layer2 = Conv2D(filters=filters, kernel_size=kernel_size, activation='ReLU')
+        self.layer1 = Conv2D(filters=filters, kernel_size=kernel_size, padding='same', activation='ReLU')
+        self.layer2 = Conv2D(filters=filters, kernel_size=kernel_size, padding='same', activation='ReLU')
         self.layer3 = MaxPooling2D(pool_size=pool_size) if pool_size else None
 
     def call(self, inputs):
-        inputs = self.layer1(inputs)
-        inputs = self.layer2(inputs)
-        if self.layer3:
-            inputs = self.layer3(inputs)
-        return inputs
+        skip = self.layer1(inputs)
+        skip = self.layer2(skip) 
+        out = skip 
+        
+        if self.layer3: # apply max pooling
+            out = self.layer3(out)
+        
+        return out, skip
 
 class UNetDecoderBlock(tf.keras.layers.Layer):
     # UNet Decoder block to be used with keras layers functional api
     #! Need to add skip connection input
-    def __init__(self, filters:int, kernel_size:tuple, pool_size:tuple, name="UNet-Decoder", **kwargs):
+    def __init__(self, skip:any, filters:int, kernel_size:tuple, pool_size:tuple, name="UNet-Decoder", **kwargs):
         super().__init__(name=name, **kwargs)
-        self.layer1 = Conv2DTranspose(filters, kernel_size=kernel_size, strides=pool_size, activation='ReLU')
-        self.layer2 = Conv2D(filters=filters/2, kernel_size=kernel_size, activation='ReLU')
-        self.layer3 = Conv2D(filters=filters/2, kernel_size=kernel_size, activation='ReLU')
+        self.skip = skip
+        
+        self.up = Conv2DTranspose(filters, kernel_size=kernel_size, strides=pool_size, padding='same', activation='ReLU')
+        self.conv1 = Conv2D(filters=filters/2, kernel_size=kernel_size, padding='same', activation='ReLU')
+        self.conv2 = Conv2D(filters=filters/2, kernel_size=kernel_size, padding='same', activation='ReLU')
 
     def call(self, inputs):
-        inputs = self.layer1(inputs)
-        inputs = self.layer2(inputs)
-        return self.layer3(inputs)
+        X = self.up(inputs)
+        X = concatenate([X, self.skip])
+        X = self.conv1(X)
+        X = self.conv2(X)
+        return X
 
 def main():
-    input = Input( (572,572,3) )
+    input = Input( (512,512,3) )
 
-    x = UNetEncoderBlock(name='EncBlk-1', filters=64, kernel_size=(3,3), pool_size=(2,2))(input)
-    x = UNetEncoderBlock(name='EncBlk-2', filters=128, kernel_size=(3,3), pool_size=(2,2))(x)
-    x = UNetEncoderBlock(name='EncBlk-3', filters=256, kernel_size=(3,3), pool_size=(2,2))(x)
-    x = UNetEncoderBlock(name='EncBlk-4', filters=512, kernel_size=(3,3), pool_size=(2,2))(x)
+    enc1 = UNetEncoderBlock(name='EncBlk-1', filters=64, kernel_size=(3,3), pool_size=(2,2))(input)
+    enc2 = UNetEncoderBlock(name='EncBlk-2', filters=128, kernel_size=(3,3), pool_size=(2,2))(enc1[0])
+    enc3 = UNetEncoderBlock(name='EncBlk-3', filters=256, kernel_size=(3,3), pool_size=(2,2))(enc2[0])
+    enc4 = UNetEncoderBlock(name='EncBlk-4', filters=512, kernel_size=(3,3), pool_size=(2,2))(enc3[0])
 
-    x = UNetEncoderBlock(name='EncBlk-5', filters=1024, kernel_size=(3,3), pool_size=None)(x) # No further pooling, bottom of "U"
+    enc5 = UNetEncoderBlock(name='EncBlk-5', filters=1024, kernel_size=(3,3), pool_size=None)(enc4[0]) # No further pooling, bottom of "U"
 
-    x = UNetDecoderBlock(name='DecBlk-1', filters=1024, kernel_size=(3,3), pool_size=(2,2))(x)
-    x = UNetDecoderBlock(name='DecBlk-2', filters=512, kernel_size=(3,3), pool_size=(2,2))(x)
-    x = UNetDecoderBlock(name='DecBlk-3', filters=256, kernel_size=(3,3), pool_size=(2,2))(x)
-    x = UNetDecoderBlock(name='DecBlk-4', filters=128, kernel_size=(3,3), pool_size=(2,2))(x)
+    dec1 = UNetDecoderBlock(name='DecBlk-1', skip=enc4[1], filters=1024, kernel_size=(3,3), pool_size=(2,2))(enc5[0])
+    dec2 = UNetDecoderBlock(name='DecBlk-2', skip=enc3[1], filters=512, kernel_size=(3,3), pool_size=(2,2))(dec1)
+    dec3 = UNetDecoderBlock(name='DecBlk-3', skip=enc2[1], filters=256, kernel_size=(3,3), pool_size=(2,2))(dec2)
+    dec4 = UNetDecoderBlock(name='DecBlk-4', skip=enc1[1], filters=128, kernel_size=(3,3), pool_size=(2,2))(dec3)
 
     # Segmentation layer
     classes = 2
