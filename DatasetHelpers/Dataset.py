@@ -2,6 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 import os
 from absl import app, flags
+from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
@@ -54,46 +55,6 @@ class Dataset:
             self.batches[i]['y'] = self.y_train[ batch_idx[i]:batch_idx[i+1] ]
 
         return self.batches        
-    
-    # def convert_to_tfds(self) -> tf.data.Dataset:
-    #     '''
-    #     Returns the created dataset as a tf.data.Dataset class.
-    #     Returns:
-    #         --  train_ds:     tf.data.Dataset
-    #         --  val_ds  :     tf.data.Dataset
-    #         --  test_d  :     tf.data.Dataset
-    #     '''
-    #     train_ds = tf.data.Dataset.from_tensor_slices((self.x_train, self.y_train))
-    #     train_ds = train_ds.map(self.__tf_read_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    #     return  train_ds
-    
-    # def __read_sample(self, data_path:str) -> tuple:
-    #     # Used by __tf_read_sample to show tensorflow how to load our data in its own automatic batching process.
-    #     path = data_path.numpy() # 0--> train , 1--> test 
-    #     img = np.ndarray(dtype=np.float32)
-    #     tgt = np.ndarray(dtype=np.float32)
-
-    #     for idx, train_path in path[0]:
-    #         with rasterio.open(train_path) as src:
-    #             tmp_img = src.read()
-    #             print(tmp_img.shape)
-    #             img = np.append(img, tmp_img, axis=0)
-        
-    #     for tgt_path in path[1]:
-    #         with rasterio.open(tgt_path) as src:
-    #             tgt = src.read()
-
-    #     print(img.shape)
-    #     img = np.transpose(img, axes=(1,2,0)) # CHW -> HWC
-    #     tgt = np.transpose(img, axes=(1,2,0))
-    #     return (img, tgt)
-
-    # @tf.function
-    # def __tf_read_sample(self, data_path:str) -> dict:
-    #     [img, tgt] = tf.py_function( self.__read_sample, [data_path], [tf.float32, tf.float32])
-    #     img.set_shape((512, 512, self.channels))
-    #     tgt.set_shape((512, 512, self.channels))
-    #     return {'image':img, 'target':tgt}
 
 def convert_to_tfds(ds:Dataset) -> tf.data.Dataset:
     '''
@@ -108,9 +69,11 @@ def convert_to_tfds(ds:Dataset) -> tf.data.Dataset:
     for x, y in zip(ds.x_train, ds.y_train): train_samples.append((*x, *y))
     
     train_samples = np.asarray(train_samples)
+    print(f'TRAINING SAMPLE TF SHAPE: {train_samples.shape}')
 
     train_ds = tf.data.Dataset.from_tensor_slices(train_samples)
     train_ds = train_ds.map(tf_read_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    train_ds = train_ds.map(load_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     return train_ds
 
 def read_sample(data_path:str) -> tuple:
@@ -119,15 +82,15 @@ def read_sample(data_path:str) -> tuple:
     img = list()
     tgt = list()
 
-    for idx, train_path in path[0:-1]:
+    for train_path in path[0:-1]:
+        train_path = train_path.decode('utf-8')
         with rasterio.open(train_path) as src:
             tmp_img = src.read()
-            print(tmp_img.shape)
             img.append(tmp_img)
     
-    for tgt_path in path[-1]:
-        with rasterio.open(tgt_path) as src:
-            tgt = src.read()
+    tgt_path = path[-1].decode('utf-8')
+    with rasterio.open(tgt_path) as src:
+        tgt = src.read()
 
     img = np.asarray(img)
     img = np.reshape(img, (512, 512, -1))
@@ -135,7 +98,6 @@ def read_sample(data_path:str) -> tuple:
     tgt = np.asarray(tgt)
     tgt = np.reshape(tgt, (512, 512, -1))
 
-    channels = int(img.shape[-1])
     return (img, tgt)
 
 @tf.function
@@ -144,6 +106,18 @@ def tf_read_sample(data_path:str) -> dict:
     img.set_shape((512, 512, 2))
     tgt.set_shape((512, 512, 1))
     return {'image':img, 'target':tgt}
+
+@tf.function
+def load_sample(sample: dict) -> tuple:
+  # convert to tf image
+  image = tf.image.resize(sample['image'], (512, 512))
+  target = tf.image.resize(sample['target'], (512, 512))
+
+  # cast to proper data types
+  image = tf.cast(image, tf.float32)
+  target = tf.cast(target, tf.float32)
+  return image, target
+
 
 def create_dataset(FLAGS:flags.FLAGS) -> Dataset:
     '''
@@ -263,7 +237,7 @@ def index_dataset(FLAGS:flags.FLAGS):
 def _test():
     FLAGS = flags.FLAGS
     flags.DEFINE_bool("debug", False, "Set logging level to debug")
-    flags.DEFINE_integer("scenario", 2, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
+    flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
     flags.DEFINE_string("model", "xgboost", "'xgboost', 'unet', 'a-unet")
     flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
     flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
@@ -287,7 +261,10 @@ def _test():
     print(f'\nCut into 4 batches with keys: {batches.keys()}')
 
     train_ds = convert_to_tfds(dataset)
-    print(f'Converted to tfds, sample: {train_ds.take(1)}')
+    
+    for img, tgt in train_ds.take(1):
+        plot1 = plt.imshow(tgt)
+        plt.savefig('Results/test.png')
 
 def main(x):
     _test()
