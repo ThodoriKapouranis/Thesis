@@ -1,17 +1,10 @@
 from dataclasses import dataclass, field
 import tensorflow as tf
 from keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, Input, Dense, concatenate
+from absl import flags, app
 # Could use https://github.com/yingkaisha/keras-unet-collection
+# from keras_unet_collection import layer_utils
 
-from keras_unet_collection import layer_utils
-
-class TensorFlowDatasetConverter:
-    '''
-    Dataloader meant to be used for the UNet model.
-    Converts the raw filenames dataset created by DatasetHelpers.create_dataset() to usable data.
-    '''
-    def load_data(X, Y):
-        ...
 
 @dataclass
 class UNet:
@@ -34,16 +27,16 @@ class UNet:
     model_name: str = "unet"
 
     model: any = field(init=False)
-    loader: UNetPipeline = field(init=False)
 
 
     def __init__(self):
-        self.loader = UNetPipeline()
+        ...
 
     def build(self):
         ...
 
     def fit(self, X, Y):
+        ...
         '''
         Arguments:
         -- X : Dataset created by DatasetHelpers.create_dataset(). List of filenames.
@@ -93,10 +86,29 @@ class UNetDecoderBlock(tf.keras.layers.Layer):
         X = self.conv2(X)
         return X
 
-def main():
+def main(x):
+    _test(x)
+
+def _test(x):
+    import sys
+    sys.path.append('../Thesis')
+    from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
+
+    FLAGS = flags.FLAGS
+    flags.DEFINE_bool("debug", False, "Set logging level to debug")
+    flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
+    flags.DEFINE_string("model", "xgboost", "'xgboost', 'unet', 'a-unet")
+    flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
+    flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
+    flags.DEFINE_string('hand_co', '/workspaces/Thesis/10m_data/coherence/hand_labeled/co_event', 'filepath of handlabelled coevent data')
+    flags.DEFINE_string('hand_pre', '/workspaces/Thesis/10m_data/coherence/hand_labeled/pre_event', 'filepath of handlabelled preevent data')
+    flags.DEFINE_string('s2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepath of S2-weak labelled data')
+    flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
+    flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
+
     tf.compat.v1.disable_eager_execution()
 
-    input = Input( (512,512,3) )
+    input = Input( (512,512,2) )
 
     enc1, skip1 = UNetEncoderBlock(name='EncBlk-1', filters=64, kernel_size=(3,3), pool_size=(2,2))(input)
     enc2, skip2 = UNetEncoderBlock(name='EncBlk-2', filters=128, kernel_size=(3,3), pool_size=(2,2))(enc1)
@@ -111,10 +123,27 @@ def main():
     dec4 = UNetDecoderBlock(name='DecBlk-4', skip=skip1, filters=64, kernel_size=(3,3), pool_size=(2,2))(dec3)
 
     # Segmentation layer
-    classes = 2
+    classes = 1
     out = Conv2D(name='Dense', filters=classes, kernel_size=(1,1))(dec4)
 
     model = tf.keras.Model(inputs=input, outputs=out, name="UNet (just encoder actually)")
     print(model.summary())
 
-main()
+    dataset = create_dataset(FLAGS)
+    train_ds, test_ds, val_ds = convert_to_tfds(dataset)
+
+    _EPOCHS = 10
+    _LR = 0.001
+    opt = tf.keras.optimizers.Adam(_LR)
+    model.compile(
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+            optimizer=opt,
+            metrics=['accuracy']
+    )
+
+    results = model.fit(train_ds, epochs=_EPOCHS, validation_data=val_ds, validation_steps=32)
+
+    model.save_weights("Results/Models/unet_test")
+
+if __name__ == "__main__":
+    app.run(main)

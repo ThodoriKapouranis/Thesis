@@ -66,15 +66,29 @@ def convert_to_tfds(ds:Dataset) -> tf.data.Dataset:
     '''
     # Samples will be converted to a list of string paths where the last string is the test label path
     train_samples = []
+    test_samples = []
+    val_samples = []
+
     for x, y in zip(ds.x_train, ds.y_train): train_samples.append((*x, *y))
+    for x, y in zip(ds.x_test, ds.y_test): test_samples.append((*x, *y))
+    for x, y in zip(ds.x_val, ds.y_val): val_samples.append((*x, *y))
     
-    train_samples = np.asarray(train_samples)
-    print(f'TRAINING SAMPLE TF SHAPE: {train_samples.shape}')
+    train_samples, test_samples, val_samples = np.asarray(train_samples), np.asarray(test_samples), np.asarray(val_samples)
 
     train_ds = tf.data.Dataset.from_tensor_slices(train_samples)
     train_ds = train_ds.map(tf_read_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     train_ds = train_ds.map(load_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    return train_ds
+
+    test_ds = tf.data.Dataset.from_tensor_slices(test_samples)
+    test_ds = test_ds.map(tf_read_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    test_ds = test_ds.map(load_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+    val_ds = tf.data.Dataset.from_tensor_slices(val_samples)
+    val_ds = val_ds.map(tf_read_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    val_ds = val_ds.map(load_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    
+    return train_ds, test_ds, val_ds
+    # return train_ds, None, None
 
 def read_sample(data_path:str) -> tuple:
     # Used by tf_read_sample to show tensorflow how to load our data in its own automatic batching process.
@@ -94,17 +108,20 @@ def read_sample(data_path:str) -> tuple:
 
     img = np.asarray(img)
     img = np.reshape(img, (512, 512, -1))
+    img = np.expand_dims(img, axis=0)
+
 
     tgt = np.asarray(tgt)
     tgt = np.reshape(tgt, (512, 512, -1))
+    tgt = np.expand_dims(tgt, axis=0)
 
     return (img, tgt)
 
 @tf.function
 def tf_read_sample(data_path:str) -> dict:
     [img, tgt] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32])
-    img.set_shape((512, 512, 2))
-    tgt.set_shape((512, 512, 1))
+    img.set_shape((1, 512, 512, 2))
+    tgt.set_shape((1, 512, 512, 1))
     return {'image':img, 'target':tgt}
 
 @tf.function
@@ -233,7 +250,6 @@ def index_dataset(FLAGS:flags.FLAGS):
     
     return files
 
-
 def _test():
     FLAGS = flags.FLAGS
     flags.DEFINE_bool("debug", False, "Set logging level to debug")
@@ -256,14 +272,15 @@ def _test():
     print('\n Base train', dataset.x_train.shape, dataset.y_train.shape)
     print('Base val', dataset.x_val.shape, dataset.y_val.shape)
     print('Base test', dataset.x_test.shape, dataset.y_test.shape)
-    
+
     batches = dataset.generate_batches(4)
     print(f'\nCut into 4 batches with keys: {batches.keys()}')
 
-    train_ds = convert_to_tfds(dataset)
-    
+    train_ds, _, _ = convert_to_tfds(dataset)
+
     for img, tgt in train_ds.take(1):
-        plot1 = plt.imshow(tgt)
+        print(img.shape, tgt.shape)
+        plot1 = plt.imshow(tgt[0,:,:,:])
         plt.savefig('Results/test.png')
 
 def main(x):
