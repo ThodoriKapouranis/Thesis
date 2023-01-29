@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.11.0-gpu
+FROM tensorflow/tensorflow:2.9.1-gpu
 # ^ For GPU tf
 
 # FROM tensorflow/tensorflow:2.9.1
