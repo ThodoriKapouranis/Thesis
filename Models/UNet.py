@@ -79,9 +79,6 @@ class UNetDecoderBlock(tf.keras.layers.Layer):
     def call(self, inputs):
         X = self.up(inputs)
         merge = concatenate([X, self.skip], axis=3)
-        print(X.shape, self.skip.shape, merge.shape)
-        print(type(X), type(self.skip), type(merge))
-
         X = self.conv1(merge)
         X = self.conv2(X)
         return X
@@ -140,11 +137,19 @@ def _test(x):
     dataset.x_val, dataset.y_val = dataset.x_train, dataset.y_train 
     train_ds, test_ds, val_ds = convert_to_tfds(dataset)
 
-    _EPOCHS = 100
+    _EPOCHS = 3
     _LR = 0.001
-    opt = tf.keras.optimizers.Adam(_LR)
+    opt = tf.keras.optimizers.Adam(
+        learning_rate=_LR,
+        beta_1=0.9,
+        beta_2=0.999,
+        epsilon=1e-07,
+        amsgrad=False,
+        name='Adam',
+    )
+    
     model.compile(
-            loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
             optimizer=opt,
             metrics=['accuracy']
     )
@@ -152,7 +157,10 @@ def _test(x):
     results = model.fit(train_ds, epochs=_EPOCHS)
     # results = model.fit(train_ds, epochs=_EPOCHS, validation_data=val_ds, validation_steps=32)
 
-    model.save_weights("Results/Models/unet_test")
+    # model.save_weights("Results/Models/unet_test")
+
+    pred = model.predict(train_ds)
+    print(pred)
 
 if __name__ == "__main__":
     app.run(main)
