@@ -303,7 +303,7 @@ def _test(x):
         name='Adam',
     )
     model.compile(
-            loss=tf.keras.losses.BinaryCrossentropy(),
+            loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
             optimizer=opt,
             metrics=['accuracy']
     )
