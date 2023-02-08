@@ -293,9 +293,15 @@ def _test(x):
         print(class_weights)
 
     _EPOCHS = 1000
-    _LR = 1e-4
+    _LR = 1e-3
+    
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(_LR,
+                                                             decay_steps=200,
+                                                             decay_rate=0.96,
+                                                             staircase=True)
+    
     opt = tf.keras.optimizers.Adam(
-        learning_rate=_LR,
+        learning_rate=lr_schedule,
         beta_1=0.9,
         beta_2=0.999,
         epsilon=1e-07,
