@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import numpy as np
 import tensorflow as tf
 from keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, Input, Dense, concatenate, Dropout, BatchNormalization, Activation, Flatten
 from absl import flags, app
@@ -112,13 +113,11 @@ class UNetDecoderBlock(tf.keras.layers.Layer):
             kernel_regularizer=L2(),
             kernel_initializer="HeNormal"
         )
+        
     def call(self, inputs):
         X = self.up(inputs)
         
-        #! #! !#
-        # merge = X
         merge = concatenate([X, self.skip], axis=3)
-        #! #! #!
 
         X = self.conv1(merge)
         X = self.conv2(X)
@@ -144,37 +143,160 @@ def _test(x):
     flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
     flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
 
-    tf.compat.v1.disable_eager_execution()
+    # tf.compat.v1.disable_eager_execution()
 
-    input = Input( (512,512,2) )
-    f = 32
-    enc1, skip1 = UNetEncoderBlock(name='EncBlk-1', filters=1*f, kernel_size=(3,3), pool_size=(2,2), dropout=None)(input)
-    enc2, skip2 = UNetEncoderBlock(name='EncBlk-2', filters=2*f, kernel_size=(3,3), pool_size=(2,2), dropout=None)(enc1)
-    enc3, skip3 = UNetEncoderBlock(name='EncBlk-3', filters=4*f, kernel_size=(3,3), pool_size=(2,2), dropout=0.4)(enc2)
-    enc4, skip4 = UNetEncoderBlock(name='EncBlk-4', filters=8*f, kernel_size=(3,3), pool_size=(2,2), dropout=0.4)(enc3)
+    # Model configuration
+    # ----------------------
+    # input = Input( (512,512,2) )
+    # f = 32
+    # enc1, skip1 = UNetEncoderBlock(name='EncBlk-1', filters=1*f, kernel_size=(3,3), pool_size=(2,2), dropout=None)(input)
+    # enc2, skip2 = UNetEncoderBlock(name='EncBlk-2', filters=2*f, kernel_size=(3,3), pool_size=(2,2), dropout=None)(enc1)
+    # enc3, skip3 = UNetEncoderBlock(name='EncBlk-3', filters=4*f, kernel_size=(3,3), pool_size=(2,2), dropout=0.4)(enc2)
+    # enc4, skip4 = UNetEncoderBlock(name='EncBlk-4', filters=8*f, kernel_size=(3,3), pool_size=(2,2), dropout=0.4)(enc3)
 
-    enc5, _ = UNetEncoderBlock(name='EncBlk-5', filters=16*f, kernel_size=(3,3), pool_size=None, dropout=0.2)(enc4) # No further pooling, bottom of "U"
+    # enc5, _ = UNetEncoderBlock(name='EncBlk-5', filters=16*f, kernel_size=(3,3), pool_size=None, dropout=0.2)(enc4) # No further pooling, bottom of "U"
 
-    dec1 = UNetDecoderBlock(name='DecBlk-1', skip=skip4, filters=8*f, kernel_size=(3,3), pool_size=(2,2))(enc5)
-    dec2 = UNetDecoderBlock(name='DecBlk-2', skip=skip3, filters=4*f, kernel_size=(3,3), pool_size=(2,2))(dec1)
-    dec3 = UNetDecoderBlock(name='DecBlk-3', skip=skip2, filters=2*f, kernel_size=(3,3), pool_size=(2,2))(dec2)
-    dec4 = UNetDecoderBlock(name='DecBlk-4', skip=skip1, filters=1*f, kernel_size=(3,3), pool_size=(2,2))(dec3)
+    # dec1 = UNetDecoderBlock(name='DecBlk-1', skip=skip4, filters=8*f, kernel_size=(3,3), pool_size=(2,2))(enc5)
+    # dec2 = UNetDecoderBlock(name='DecBlk-2', skip=skip3, filters=4*f, kernel_size=(3,3), pool_size=(2,2))(dec1)
+    # dec3 = UNetDecoderBlock(name='DecBlk-3', skip=skip2, filters=2*f, kernel_size=(3,3), pool_size=(2,2))(dec2)
+    # dec4 = UNetDecoderBlock(name='DecBlk-4', skip=skip1, filters=1*f, kernel_size=(3,3), pool_size=(2,2))(dec3)
 
-    # Segmentation layer
-    classes = 1
+    # classes = 1
+    # out = Conv2D(name='classification', filters=classes, kernel_size=(1,1), activation='sigmoid', padding='same')(dec4)
+    # model = tf.keras.Model(inputs=input, outputs=out, name="UNet")
+    # print(model.summary())
 
-    out = Conv2D(name='classification', filters=classes, kernel_size=(1,1), activation='sigmoid', padding='same')(dec4)
+    # REMOTE SENSING CLASS Model Configuration
+    # 3x3 conv -> 3x3 conv -> (2,2) max pool
+    def EncoderMiniBlock(inputs, n_filters=32, dropout_prob=0.3, max_pooling=True):
+        conv = Conv2D(n_filters, 
+            3,  # filter size
+            activation='relu',
+            padding='same',
+            kernel_regularizer=tf.keras.regularizers.l2(),
+            kernel_initializer='HeNormal')(inputs)
 
-    model = tf.keras.Model(inputs=input, outputs=out, name="UNet")
+        conv = Conv2D(n_filters, 
+            3,  # filter size
+            activation='relu',
+            padding='same',
+            kernel_regularizer=tf.keras.regularizers.l2(),
+            kernel_initializer='HeNormal')(conv)
+
+        conv = BatchNormalization()(conv, training=False)
+        if dropout_prob > 0:     
+            conv = tf.keras.layers.Dropout(dropout_prob)(conv)
+        if max_pooling:
+            next_layer = tf.keras.layers.MaxPooling2D(pool_size = (2,2))(conv)    
+        else:
+            next_layer = conv
+        skip_connection = conv    
+        return next_layer, skip_connection
+
+# 2x2 up-conv, merge with skip connection, 3x3 conv, 3x3 conv
+    def DecoderMiniBlock(prev_layer_input, skip_layer_input, n_filters=32):
+        up = Conv2DTranspose(
+                    n_filters,
+                    (3,3),
+                    strides=(2,2),
+                    padding='same')(prev_layer_input)
+
+        merge = concatenate([up, skip_layer_input], axis=3)
+
+        conv = Conv2D(n_filters, 
+                    3,  
+                    activation='relu',
+                    padding='same',
+                    kernel_regularizer=tf.keras.regularizers.l2(),
+                    kernel_initializer='HeNormal')(merge)
+        conv = Conv2D(n_filters,
+                    3, 
+                    activation='relu',
+                    padding='same',
+                    kernel_regularizer=tf.keras.regularizers.l2(),
+                    kernel_initializer='HeNormal')(conv)
+        return conv
+
+# Assemble the full model
+    def UNetCompiled(input_size=(256, 256, 10), n_filters=32, n_classes=9):
+
+        # Input size represent the size of 1 image (the size used for pre-processing) 
+        inputs = Input(input_size)
+        
+        # Encoder includes multiple convolutional mini blocks with different maxpooling, dropout and filter parameters
+        # Observe that the filters are increasing as we go deeper into the network which will increasse the # channels of the image 
+        cblock1 = EncoderMiniBlock(inputs, n_filters,dropout_prob=0, max_pooling=True)
+        cblock2 = EncoderMiniBlock(cblock1[0],n_filters*2,dropout_prob=0, max_pooling=True)
+        cblock3 = EncoderMiniBlock(cblock2[0], n_filters*4,dropout_prob=0, max_pooling=True)
+        cblock4 = EncoderMiniBlock(cblock3[0], n_filters*8,dropout_prob=0.3, max_pooling=True)
+        cblock5 = EncoderMiniBlock(cblock4[0], n_filters*16, dropout_prob=0.3, max_pooling=False) 
+        
+        # Decoder includes multiple mini blocks with decreasing number of filters
+        # Observe the skip connections from the encoder are given as input to the decoder
+        # Recall the 2nd output of encoder block was skip connection, hence cblockn[1] is used
+        ublock6 = DecoderMiniBlock(cblock5[0], cblock4[1],  n_filters * 8)
+        ublock7 = DecoderMiniBlock(ublock6, cblock3[1],  n_filters * 4)
+        ublock8 = DecoderMiniBlock(ublock7, cblock2[1],  n_filters * 2)
+        ublock9 = DecoderMiniBlock(ublock8, cblock1[1],  n_filters)
+
+        # Complete the model with 1 3x3 convolution layer (Same as the prev Conv Layers)
+        # Followed by a 1x1 Conv layer to get the image to the desired size. 
+        # Observe the number of channels will be equal to number of output classes
+        conv9 = Conv2D(n_filters,
+                        3,
+                        activation='relu',
+                        padding='same',
+                        kernel_initializer='he_normal')(ublock9)
+
+        conv10 = Conv2D(n_classes, 1, padding='same')(conv9)
+        
+        # Define the model
+        model = tf.keras.Model(inputs=inputs, outputs=conv10)
+
+        return model
+
+    model = UNetCompiled(input_size=(512,512,2), n_classes=1)
     print(model.summary())
 
+    # Dataset initialization
+    # -----------------------
     dataset = create_dataset(FLAGS)
 
     # Modify the dataset to only use a tiny slice of data to overfit to test functionality
-    dataset.x_train, dataset.y_train = dataset.x_train[0:1], dataset.y_train[0:1]
-    dataset.x_val, dataset.y_val = dataset.x_train, dataset.y_train 
+    # dataset.x_train, dataset.y_train = dataset.x_train[0:5], dataset.y_train[0:5]
+    # dataset.x_val, dataset.y_val = dataset.x_train, dataset.y_train 
     
     train_ds, test_ds, val_ds = convert_to_tfds(dataset)
+
+    # Get classweights by using only visible training data.
+    FORCE_CLASS_WEIGHT_CALCULATION = True
+    class_weights = {}
+    
+    if FORCE_CLASS_WEIGHT_CALCULATION:
+        @tf.function
+        def reduce_labels(state, data) -> np.int64:
+            _, y = data
+            return state + tf.math.count_nonzero(y)
+
+        print("Manually calculating BALANCED class weights ... ")
+        total_pixels = len(train_ds)*512*512
+        water_count = train_ds.reduce(np.int64(0), reduce_labels).numpy()
+        non_water_count = total_pixels - water_count
+        
+        water_weight =  total_pixels / (2 * water_count )
+        non_water_weight = total_pixels / (2 * non_water_count )
+        class_weights = {
+            0 : non_water_weight,
+            1 : water_weight
+        }
+    
+    else: # Much faster, just use hardcoded weights
+        class_weights = {0: 0.6212519560516805, 1: 2.5618224079902174}
+        
+
+    print(class_weights)
+
+    exit()
 
     _EPOCHS = 1000
     _LR = 1e-4

@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 import os
+from typing import Tuple
 from absl import app, flags
 from matplotlib import pyplot as plt
 import numpy as np
@@ -56,7 +57,7 @@ class Dataset:
 
         return self.batches        
 
-def convert_to_tfds(ds:Dataset) -> tf.data.Dataset:
+def convert_to_tfds(ds:Dataset) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     '''
     Returns the created dataset as a tf.data.Dataset class.
     Returns:
