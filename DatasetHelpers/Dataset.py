@@ -93,6 +93,9 @@ def convert_to_tfds(ds:Dataset) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.da
 
 def read_sample(data_path:str) -> tuple:
     # Used by tf_read_sample to show tensorflow how to load our data in its own automatic batching process.
+    #! Hardcode this for now
+    #! Please please please figure out how to change this later. yucky
+    CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174} 
     path = data_path.numpy() # 0:-1 --> training paths
     img = list()
     tgt = list()
@@ -116,25 +119,33 @@ def read_sample(data_path:str) -> tuple:
     tgt = np.reshape(tgt, (512, 512, -1))
     tgt = np.expand_dims(tgt, axis=0)
 
-    return (img, tgt)
+    # Add the weighting
+    weights = np.ones(tgt.shape, dtype=np.float32)
+    for k,v in CLASS_W.items():
+        weights[ tgt == k] = v
+
+    return (img, tgt, weights)
 
 @tf.function
 def tf_read_sample(data_path:str) -> dict:
-    [img, tgt] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32])
+    [img, tgt, weight] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32, tf.float32])
     img.set_shape((1, 512, 512, 2))
     tgt.set_shape((1, 512, 512, 1))
-    return {'image':img, 'target':tgt}
+    weight.set_shape((1, 512, 512, 1))
+    return {'image': img, 'target': tgt, 'weight': weight}
 
 @tf.function
 def load_sample(sample: dict) -> tuple:
   # convert to tf image
   image = tf.image.resize(sample['image'], (512, 512))
   target = tf.image.resize(sample['target'], (512, 512))
+  weight = tf.image.resize(sample['weight'], (512, 512))
 
   # cast to proper data types
   image = tf.cast(image, tf.float32)
   target = tf.cast(target, tf.float32)
-  return image, target
+  weight = tf.cast(weight, tf.float32)
+  return image, target, weight
 
 
 def create_dataset(FLAGS:flags.FLAGS) -> Dataset:
