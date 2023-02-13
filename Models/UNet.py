@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import numpy as np
 import tensorflow as tf
-from keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, Input, Dense, concatenate, Dropout, BatchNormalization, Activation, Flatten
+from keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, Input, Dense, concatenate, Dropout, BatchNormalization, Activation, Flatten, RandomFlip, RandomRotation
 from absl import flags, app
 from keras.regularizers import L2
 # Could use https://github.com/yingkaisha/keras-unet-collection
@@ -218,10 +218,14 @@ def _test(x):
         return conv
 
 # Assemble the full model
-    def UNetCompiled(input_size=(256, 256, 10), n_filters=32, n_classes=9):
+    def UNetCompiled(input_size=(512, 512, 2), n_filters=32, n_classes=2):
 
         # Input size represent the size of 1 image (the size used for pre-processing) 
         inputs = Input(input_size)
+        
+        # Data augmentation layers
+        # inputs = RandomFlip()(inputs)
+        # inputs = RandomRotation(0.2)(inputs)
         
         # Encoder includes multiple convolutional mini blocks with different maxpooling, dropout and filter parameters
         # Observe that the filters are increasing as we go deeper into the network which will increasse the # channels of the image 
@@ -239,23 +243,23 @@ def _test(x):
         ublock8 = DecoderMiniBlock(ublock7, cblock2[1],  n_filters * 2)
         ublock9 = DecoderMiniBlock(ublock8, cblock1[1],  n_filters)
 
-        # Complete the model with 1 3x3 convolution layer (Same as the prev Conv Layers)
+        # Complete the model with 1 3x3 convolution layer (Same as the prev Conv Layers) 
         # Followed by a 1x1 Conv layer to get the image to the desired size. 
-        # Observe the number of channels will be equal to number of output classes
+        # Observe the number of channels will be equal to number of output classes 
         conv9 = Conv2D(n_filters,
                         3,
                         activation='relu',
                         padding='same',
                         kernel_initializer='he_normal')(ublock9)
 
-        conv10 = Conv2D(n_classes, 1, padding='same')(conv9)
+        out = Conv2D(n_classes, 1, padding='same')(conv9)
         
         # Define the model
-        model = tf.keras.Model(inputs=inputs, outputs=conv10)
+        model = tf.keras.Model(inputs=inputs, outputs=out)
 
         return model
 
-    model = UNetCompiled(input_size=(512,512,2), n_classes=1)
+    model = UNetCompiled(input_size=(512,512,2), n_classes=2)
     print(model.summary())
 
     # Dataset initialization
@@ -269,7 +273,7 @@ def _test(x):
     print(f"Using class weights : {CLASS_W}")    
 
     # Modify the dataset to only use a tiny slice of data to overfit to test functionality
-    dataset.x_train, dataset.y_train = dataset.x_train[0:1], dataset.y_train[0:1]
+    dataset.x_train, dataset.y_train = dataset.x_train[0:20], dataset.y_train[0:20]
     dataset.x_val, dataset.y_val = dataset.x_train, dataset.y_train 
     
     train_ds, test_ds, val_ds = convert_to_tfds(dataset)
@@ -293,7 +297,7 @@ def _test(x):
         print(class_weights)
 
     _EPOCHS = 1000
-    _LR = 1e-3
+    _LR = 1e-4
     
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(_LR,
                                                              decay_steps=200,
@@ -309,7 +313,7 @@ def _test(x):
         name='Adam',
     )
     model.compile(
-            loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
             optimizer=opt,
             metrics=['accuracy']
     )

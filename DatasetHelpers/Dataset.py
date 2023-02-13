@@ -8,6 +8,13 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import rasterio
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+label_remapping = {
+    -1: 0,
+    0: 0,
+    1: 1,
+}
 
 @dataclass
 class Dataset:
@@ -106,25 +113,51 @@ def read_sample(data_path:str) -> tuple:
             tmp_img = src.read()
             img.append(tmp_img)
     
+    img = np.squeeze(np.asarray(img))
+    img = np.transpose(img, axes=(1,2,0))
+    img = np.expand_dims(img, axis=0)
+
     tgt_path = path[-1].decode('utf-8')
     with rasterio.open(tgt_path) as src:
         tgt = src.read()
+        
+        for old_val, new_val in label_remapping.items():
+            tgt[tgt == old_val] = new_val
 
-    img = np.asarray(img)
-    img = np.reshape(img, (512, 512, -1))
-    img = np.expand_dims(img, axis=0)
+    ## DEBUG TRAINING DATA
+    # fig1, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+    # ax1.imshow(img[0,:,:,0], cmap='Greys')
+    # ax2.imshow(img[0,:,:,1], cmap='Greys')
+    # fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_training.png")
+    
+    ## MASKING
+    nans = np.isnan(img[0,:,:,:]).any(axis=-1)
+    tgt_masked = np.ma.masked_array(tgt, mask=nans)
+    
+    ## DEBUG MASKING
+    if np.count_nonzero(nans) > 0:
+        # print(nans.shape, np.count_nonzero(nans))
 
+        fig1, (ax1, ax2, ax3, ax4) = plt.subplots(nrows=1, ncols=4)
 
-    tgt = np.asarray(tgt)
-    tgt = np.reshape(tgt, (512, 512, -1))
-    tgt = np.expand_dims(tgt, axis=0)
+        ax1.imshow(nans, cmap='Greys')
+        ax2.imshow(img[0,:,:,-1], cmap='Greys')
+        ax3.imshow(tgt.reshape((512,512)), cmap='Greys')
+        ax4.imshow(tgt_masked.reshape((512,512)), cmap='Greys')
 
-    # Add the weighting
-    weights = np.ones(tgt.shape, dtype=np.float32)
+        fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_masks.png")
+
+    plt.close()
+
+    tgt_masked = np.transpose(tgt_masked, axes=(1,2,0))
+    tgt_masked = np.expand_dims(tgt_masked, axis=0)
+
+    ## Add the weighting
+    weights = np.ones(tgt_masked.shape, dtype=np.float32)
     for k,v in CLASS_W.items():
-        weights[ tgt == k] = v
+        weights[ tgt_masked == k] = v
 
-    return (img, tgt, weights)
+    return (img, tgt_masked, weights)
 
 @tf.function
 def tf_read_sample(data_path:str) -> dict:
@@ -290,10 +323,13 @@ def _test():
 
     train_ds, _, _ = convert_to_tfds(dataset)
 
-    for img, tgt in train_ds.take(1):
+    for img, tgt, _ in train_ds.take(1):
         print(img.shape, tgt.shape)
-        plot1 = plt.imshow(tgt[0,:,:,:])
-        plt.savefig('Results/test.png')
+        fig1, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+        ax1.imshow(img[0,:,:,0])
+        ax2.imshow(img[0,:,:,1])
+        fig1.savefig('Results/test.png')
+
 
 def main(x):
     _test()
