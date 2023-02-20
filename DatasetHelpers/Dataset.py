@@ -134,6 +134,9 @@ def read_sample(data_path:str) -> tuple:
     nans = np.isnan(img[0,:,:,:]).any(axis=-1)
     tgt_masked = np.ma.masked_array(tgt, mask=nans)
     
+    ## NAN IMPUTATION
+    img = np.nan_to_num(img, nan=0.0)
+    
     ## DEBUG MASKING
     if np.count_nonzero(nans) > 0:
         # print(nans.shape, np.count_nonzero(nans))
