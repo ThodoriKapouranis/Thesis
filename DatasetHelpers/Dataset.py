@@ -130,27 +130,28 @@ def read_sample(data_path:str) -> tuple:
     # ax2.imshow(img[0,:,:,1], cmap='Greys')
     # fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_training.png")
     
-    ## MASKING
+    # ## MASKING
     nans = np.isnan(img[0,:,:,:]).any(axis=-1)
     tgt_masked = np.ma.masked_array(tgt, mask=nans)
     
-    ## NAN IMPUTATION
-    img = np.nan_to_num(img, nan=0.0)
+    # ## NAN IMPUTATION
+    if np.count_nonzero(nans) > 0:
+        img = np.nan_to_num(img, nan=0.0)
     
     ## DEBUG MASKING
-    if np.count_nonzero(nans) > 0:
-        # print(nans.shape, np.count_nonzero(nans))
+    # if np.count_nonzero(nans) > 0:
+    #     # print(nans.shape, np.count_nonzero(nans))
 
-        fig1, (ax1, ax2, ax3, ax4) = plt.subplots(nrows=1, ncols=4)
+    #     fig1, (ax1, ax2, ax3, ax4) = plt.subplots(nrows=1, ncols=4)
 
-        ax1.imshow(nans, cmap='Greys')
-        ax2.imshow(img[0,:,:,-1], cmap='Greys')
-        ax3.imshow(tgt.reshape((512,512)), cmap='Greys')
-        ax4.imshow(tgt_masked.reshape((512,512)), cmap='Greys')
+    #     ax1.imshow(nans, cmap='Greys')
+    #     ax2.imshow(img[0,:,:,-1], cmap='Greys')
+    #     ax3.imshow(tgt.reshape((512,512)), cmap='Greys')
+    #     ax4.imshow(tgt_masked.reshape((512,512)), cmap='Greys')
 
-        fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_masks.png")
+    #     fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_masks.png")
 
-    plt.close()
+    # plt.close()
 
     tgt_masked = np.transpose(tgt_masked, axes=(1,2,0))
     tgt_masked = np.expand_dims(tgt_masked, axis=0)

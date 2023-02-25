@@ -4,6 +4,7 @@ import tensorflow as tf
 from keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, Input, Dense, concatenate, Dropout, BatchNormalization, Activation, Flatten, RandomFlip, RandomRotation
 from absl import flags, app
 from keras.regularizers import L2
+from keras.metrics import MeanIoU
 # Could use https://github.com/yingkaisha/keras-unet-collection
 # from keras_unet_collection import layer_utils
 
@@ -273,7 +274,7 @@ def _test(x):
     print(f"Using class weights : {CLASS_W}")    
 
     # Modify the dataset to only use a tiny slice of data to overfit to test functionality
-    dataset.x_train, dataset.y_train = dataset.x_train[0:20], dataset.y_train[0:20]
+    dataset.x_train, dataset.y_train = dataset.x_train[0:2], dataset.y_train[0:2]
     dataset.x_val, dataset.y_val = dataset.x_train, dataset.y_train 
     
     train_ds, test_ds, val_ds = convert_to_tfds(dataset)
@@ -315,7 +316,7 @@ def _test(x):
     model.compile(
             loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
             optimizer=opt,
-            metrics=['accuracy']
+            metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
     )
     
     train_ds.shuffle(300)
@@ -323,8 +324,12 @@ def _test(x):
     # results = model.fit(train_ds, epochs=_EPOCHS, validation_data=val_ds, validation_steps=32)
 
     model.save_weights("Results/Models/unet_scenario1_32")
-    pred = model.predict(train_ds)
-    print(pred)
+    # pred = model.predict(train_ds)  # These are logits
+    # pred_classes = tf.argmax(pred, axis=3) 
+
+    
+    # print(pred.shape)
+    # print(pred_classes)
 
 if __name__ == "__main__":
     app.run(main)
