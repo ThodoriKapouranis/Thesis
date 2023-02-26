@@ -265,17 +265,17 @@ def _test(x):
 
     # Dataset initialization
     # -----------------------
-    USE_CLASS_WEIGHTS = True
+    # USE_CLASS_WEIGHTS = True
     dataset = create_dataset(FLAGS)
     CLASS_W = {0: 1.0, 1: 1.0} # Needs to be global to be used by tensorflow dataloader since it only takes img URL as input.
-    if USE_CLASS_WEIGHTS:
-        CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174}
+    # if USE_CLASS_WEIGHTS:
+    #     CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174}
 
     print(f"Using class weights : {CLASS_W}")    
 
     # Modify the dataset to only use a tiny slice of data to overfit to test functionality
-    dataset.x_train, dataset.y_train = dataset.x_train[0:2], dataset.y_train[0:2]
-    dataset.x_val, dataset.y_val = dataset.x_train, dataset.y_train 
+    # dataset.x_train, dataset.y_train = dataset.x_train[0:1], dataset.y_train[0:1]
+    # dataset.x_val, dataset.y_val = dataset.x_train, dataset.y_train
     
     train_ds, test_ds, val_ds = convert_to_tfds(dataset)
 
@@ -297,7 +297,7 @@ def _test(x):
         class_weights = { 0 : non_water_weight, 1 : water_weight }
         print(class_weights)
 
-    _EPOCHS = 1000
+    _EPOCHS = 10
     _LR = 1e-4
     
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(_LR,
@@ -313,6 +313,7 @@ def _test(x):
         amsgrad=False,
         name='Adam',
     )
+
     model.compile(
             loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
             optimizer=opt,
@@ -320,10 +321,10 @@ def _test(x):
     )
     
     train_ds.shuffle(300)
-    results = model.fit(train_ds, epochs=_EPOCHS)
-    # results = model.fit(train_ds, epochs=_EPOCHS, validation_data=val_ds, validation_steps=32)
+    # results = model.fit(train_ds, epochs=_EPOCHS)
+    results = model.fit(train_ds, epochs=_EPOCHS, validation_data=val_ds, validation_steps=32)
 
-    model.save_weights("Results/Models/unet_scenario1_32")
+    model.save("Results/Models/unet_scenario1_32")
     # pred = model.predict(train_ds)  # These are logits
     # pred_classes = tf.argmax(pred, axis=3) 
 
