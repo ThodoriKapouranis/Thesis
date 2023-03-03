@@ -47,6 +47,12 @@ flags.DEFINE_string("savename", None, "Name to use to save the model")
 
 def main(x):
     validate_config(FLAGS)
+    if FLAGS.scenario == 3:
+        channel_size = 6
+    elif FLAGS.scenario == 2:
+        channel_size = 4
+    else:
+        channel_size = 2
     
     # XGboost uses a different kind of dataloader than the Tensorflow models.
     if FLAGS.model == 'xgboost':
@@ -59,7 +65,7 @@ def main(x):
         # Generic tensorflow NN hyperparameter and dataset creation
         model=None
         dataset = create_dataset(FLAGS)
-        train_ds, val_ds, test_ds, = convert_to_tfds(dataset)
+        train_ds, val_ds, test_ds, = convert_to_tfds(dataset, channel_size)
         
         lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
             FLAGS.lr,
@@ -78,7 +84,7 @@ def main(x):
         )
 
         if FLAGS.model == 'unet':
-            model = UNetCompiled(input_size=(512,512,2), n_filters=64, n_classes=2)
+            model = UNetCompiled(input_size=(512, 512, channel_size), n_filters=64, n_classes=2)
             print(model.summary())
             
             model.compile(

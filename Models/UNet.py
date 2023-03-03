@@ -252,7 +252,7 @@ def _test(x):
     # dataset.x_train, dataset.y_train = dataset.x_train[0:1], dataset.y_train[0:1]
     # dataset.x_val, dataset.y_val = dataset.x_train, dataset.y_train
     
-    train_ds, val_ds, test_ds, = convert_to_tfds(dataset)
+    train_ds, val_ds, test_ds, = convert_to_tfds(dataset, channel_size=2)
 
     # Get classweights by using only visible training data.
     DEBUG_FORCE_CLASS_WEIGHT_CALCULATION = False
@@ -279,6 +279,7 @@ def _test(x):
                                                              decay_steps=200,
                                                              decay_rate=0.96,
                                                              staircase=True)
+
     opt = tf.keras.optimizers.Adam(
         learning_rate=lr_schedule,
         beta_1=0.9,
@@ -293,7 +294,7 @@ def _test(x):
             optimizer=opt,
             metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
     )
-    
+
     train_ds.shuffle(300)
     # results = model.fit(train_ds, epochs=_EPOCHS)
     results = model.fit(train_ds, epochs=_EPOCHS, validation_data=val_ds, validation_steps=32)
@@ -302,7 +303,7 @@ def _test(x):
     # pred = model.predict(train_ds)  # These are logits
     # pred_classes = tf.argmax(pred, axis=3) 
 
-    
+
     # print(pred.shape)
     # print(pred_classes)
 

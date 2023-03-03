@@ -64,7 +64,7 @@ class Dataset:
 
         return self.batches        
 
-def convert_to_tfds(ds:Dataset) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+def convert_to_tfds(ds:Dataset, channel_size:int) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     '''
     Returns the created dataset as a tf.data.Dataset class.
     Returns:
@@ -85,6 +85,7 @@ def convert_to_tfds(ds:Dataset) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.da
     train_samples, test_samples, val_samples = np.asarray(train_samples), np.asarray(test_samples), np.asarray(val_samples)
 
     train_ds = tf.data.Dataset.from_tensor_slices(train_samples)
+    tf_read_sample = tf_read_sample_channelfix(channel_size)
     train_ds = train_ds.map(tf_read_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     train_ds = train_ds.map(load_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
@@ -105,18 +106,28 @@ def read_sample(data_path:str) -> tuple:
     #! Please please please figure out how to change this later. yucky
     CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174} 
     path = data_path.numpy() # 0:-1 --> training paths
-    img = list()
+    img = []
     tgt = list()
 
     for train_path in path[0:-1]:
         train_path = train_path.decode('utf-8')
         with rasterio.open(train_path) as src:
             tmp_img = src.read()
-            img.append(tmp_img)
+            
+            # First image to be appended to the list
+            if img == []: 
+                img.append(tmp_img)
+                img = np.asarray(img) # --> (1, 2, 512, 512)
+            
+            # Subsequent image samples will be np.appended to perserve shape
+            else:
+                tmp_img = np.expand_dims(tmp_img, axis=0)
+                img = np.append(img, tmp_img, axis=1) # --> (1, 2+, 512, 512)
     
-    img = np.squeeze(np.asarray(img))
-    img = np.transpose(img, axes=(1,2,0))
-    img = np.expand_dims(img, axis=0)
+
+    # img = np.squeeze(np.asarray(img))
+    img = np.transpose(img, axes=(0,2,3,1)) # 1 H W C format
+    # img = np.expand_dims(img, axis=0)
 
     tgt_path = path[-1].decode('utf-8')
     with rasterio.open(tgt_path) as src:
@@ -164,13 +175,27 @@ def read_sample(data_path:str) -> tuple:
 
     return (img, tgt_masked, weights)
 
-@tf.function
-def tf_read_sample(data_path:str) -> dict:
-    [img, tgt, weight] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32, tf.float32])
-    img.set_shape((1, 512, 512, 2))
-    tgt.set_shape((1, 512, 512, 1))
-    weight.set_shape((1, 512, 512, 1))
-    return {'image': img, 'target': tgt, 'weight': weight}
+def tf_read_sample_channelfix(channel_size:int):
+
+    @tf.function
+    def tf_read_sample(data_path:str) -> dict:
+        [img, tgt, weight] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32, tf.float32])
+        # todo: These shapes need to be changed given scenario flags
+        img.set_shape((1, 512, 512, channel_size))
+        tgt.set_shape((1, 512, 512, 1))
+        weight.set_shape((1, 512, 512, 1))
+        return {'image': img, 'target': tgt, 'weight': weight}
+    
+    return tf_read_sample
+
+    # @tf.function
+    # def tf_read_sample(data_path:str) -> dict:
+    #     [img, tgt, weight] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32, tf.float32])
+    #     # todo: These shapes need to be changed given scenario flags
+    #     img.set_shape((1, 512, 512, 2))
+    #     tgt.set_shape((1, 512, 512, 1))
+    #     weight.set_shape((1, 512, 512, 1))
+    #     return {'image': img, 'target': tgt, 'weight': weight}
 
 @tf.function
 def load_sample(sample: dict) -> tuple:
