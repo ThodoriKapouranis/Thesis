@@ -242,11 +242,11 @@ def _test(x):
     # -----------------------
     # USE_CLASS_WEIGHTS = True
     dataset = create_dataset(FLAGS)
-    CLASS_W = {0: 1.0, 1: 1.0} # Needs to be global to be used by tensorflow dataloader since it only takes img URL as input.
+    # 
+    # CLASS_W = {0: 1.0, 1: 1.0} # Needs to be global to be used by tensorflow dataloader since it only takes img URL as input.
     # if USE_CLASS_WEIGHTS:
     #     CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174}
-
-    print(f"Using class weights : {CLASS_W}")    
+    # print(f"Using class weights : {CLASS_W}")    
 
     # Modify the dataset to only use a tiny slice of data to overfit to test functionality
     # dataset.x_train, dataset.y_train = dataset.x_train[0:1], dataset.y_train[0:1]
