@@ -25,23 +25,23 @@ class Dataset:
     scenario: int
     x_train: np.ndarray
     y_train: np.ndarray
-    x_holdout: np.ndarray
-    y_holdout: np.ndarray
-    x_hand: np.ndarray
-    y_hand: np.ndarray
+    x_holdout: np.ndarray   # Sri Lanka test set
+    y_holdout: np.ndarray   # Sri Lanka test set
+    x_hand: np.ndarray      # Hand labelled test set
+    y_hand: np.ndarray      # Hand labelled test set
 
-    x_val: np.ndarray = field(init=False)
-    y_val: np.ndarray = field(init=False)
-    x_test: np.ndarray = field(init=False)
-    y_test: np.ndarray = field(init=False)
+    x_val: np.ndarray = field(init=False) # Should be taken from x_train post_init
+    y_val: np.ndarray = field(init=False) # Should be taken from y_train post_init
+    # x_test: np.ndarray = field(init=False)
+    # y_test: np.ndarray = field(init=False)
 
     channels: int = field(init=False)
     batches: dict = field(init=False)
 
     def __post_init__(self):
         # 70 : 20 : 10  train | test | val 
-        self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x_train, self.y_train, test_size=0.30)
-        self.x_test, self.x_val, self.y_test, self.y_val,  = train_test_split(self.x_test, self.y_test, test_size=0.33)
+        self.x_train, self.x_val, self.y_train, self.y_val = train_test_split(self.x_train, self.y_train, test_size=0.30)
+        # self.x_test, self.x_val, self.y_test, self.y_val,  = train_test_split(self.x_test, self.y_test, test_size=0.33)
         
         if self.scenario == 0: self.channels = 2
         elif self.scenario == 1: self.channels = 4
@@ -70,7 +70,8 @@ def convert_to_tfds(ds:Dataset) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.da
     Returns:
         --  train_ds:     tf.data.Dataset
         --  val_ds  :     tf.data.Dataset
-        --  test_d  :     tf.data.Dataset
+        --  test_ds (holdout) :     tf.data.Dataset
+        // hand_ds : tf.data.Dataset
     '''
     # Samples will be converted to a list of string paths where the last string is the test label path
     train_samples = []
@@ -78,7 +79,7 @@ def convert_to_tfds(ds:Dataset) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.da
     val_samples = []
 
     for x, y in zip(ds.x_train, ds.y_train): train_samples.append((*x, *y))
-    for x, y in zip(ds.x_test, ds.y_test): test_samples.append((*x, *y))
+    for x, y in zip(ds.x_holdout, ds.y_holdout): test_samples.append((*x, *y)) 
     for x, y in zip(ds.x_val, ds.y_val): val_samples.append((*x, *y))
     
     train_samples, test_samples, val_samples = np.asarray(train_samples), np.asarray(test_samples), np.asarray(val_samples)
@@ -95,7 +96,7 @@ def convert_to_tfds(ds:Dataset) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.da
     val_ds = val_ds.map(tf_read_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     val_ds = val_ds.map(load_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
-    return train_ds, test_ds, val_ds
+    return train_ds, val_ds, test_ds
     # return train_ds, None, None
 
 def read_sample(data_path:str) -> tuple:
@@ -187,17 +188,15 @@ def load_sample(sample: dict) -> tuple:
 
 def create_dataset(FLAGS:flags.FLAGS) -> Dataset:
     '''
-    Looks through indexed dataset folders to ensure that it creates a dataset where the same instances are available in every training scenario.
+    Looks through dataset folders to ensure that it creates a dataset where the same scene instances are available in ALL training scenarios.
     
     Returns
         -- Dataset: DatasetHelpers.Dataset
 
     In order to be usable with tensorflow NN models, Dataset.convert_to_tfds must be called.
-    
     '''
 
     holdout_region = "Sri-Lanka"
-
     x_train = []
     y_train = []
     x_holdout = []
