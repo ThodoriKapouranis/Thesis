@@ -86,7 +86,7 @@ def convert_to_tfds(ds:Dataset, channel_size:int) -> Tuple[tf.data.Dataset, tf.d
     for x, y in zip(ds.x_holdout, ds.y_holdout): test_samples.append((*x, *y)) 
     for x, y in zip(ds.x_hand, ds.y_hand): hand_samples.append((*x, *y))
     
-    train_samples, val_samples, test_samples, hand_samples = np.asarray(train_samples), np.asarray(val_samples), np.asarray(test_samples), np.asarray(val_samples)
+    train_samples, val_samples, test_samples, hand_samples = np.asarray(train_samples), np.asarray(val_samples), np.asarray(test_samples), np.asarray(hand_samples)
 
     train_ds = tf.data.Dataset.from_tensor_slices(train_samples)
     train_ds = train_ds.map(tf_read_sample, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -242,11 +242,11 @@ def create_dataset(FLAGS:flags.FLAGS) -> Dataset:
         'coh_pre': '_pre_event_coh.tif',
         's2_weak': '_S2IndexLabelWeak.tif',
 
-        'hand_coh_co': '_co_event_coh_HandLabeled',
-        'hand_coh_pre': '_pre_event_coh_HandLabeled',
-        'hand_s1_co': '_S1Hand',
-        'hand_s1_pre': '_pre_event_grd_HandLabeled',
-        'hand_labels': '_LabelHand',
+        'hand_coh_co': '_co_event_coh_HandLabeled.tif',
+        'hand_coh_pre': '_pre_event_coh_HandLabeled.tif',
+        'hand_s1_co': '_S1Hand.tif',
+        'hand_s1_pre': '_pre_event_grd_HandLabeled.tif',
+        'hand_labels': '_LabelHand.tif',
     }
 
     file_dir = {

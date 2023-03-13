@@ -88,12 +88,12 @@ def main(x):
         return  water_IoU, water_p, water_r, water_f
 
     hand_water_IoU, hand_water_p, hand_water_r, hand_water_f = calculate_metrics(model, hand_set)
-    hold_water_IoU, hold_water_p, hold_water_r, hold_water_f = calculate_metrics(model, holdout_set)
+    # hold_water_IoU, hold_water_p, hold_water_r, hold_water_f = calculate_metrics(model, holdout_set)
 
-    print(f'Water IoU:\t\t {100 * hold_water_IoU}:.2f')
-    print(f'Water Precision:\t\t {100 * hold_water_p}:.2f')
-    print(f'Water Recall:\t\t {100 * hold_water_r}:.2f')
-    print(f'Water F1:\t\t {100 * hold_water_f}:.2f')
+    # print(f'Water IoU:\t\t {100 * hold_water_IoU}:.2f')
+    # print(f'Water Precision:\t\t {100 * hold_water_p}:.2f')
+    # print(f'Water Recall:\t\t {100 * hold_water_r}:.2f')
+    # print(f'Water F1:\t\t {100 * hold_water_f}:.2f')
     print('\n')
     print(f'Water IoU:\t\t {100 * hand_water_IoU}:.2f')
     print(f'Water Precision:\t\t {100 * hand_water_p}:.2f')
