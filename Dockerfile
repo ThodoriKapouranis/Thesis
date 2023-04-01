@@ -8,7 +8,7 @@ FROM tensorflow/tensorflow:2.11.0-gpu
 RUN apt-get update -qq \
     && apt-get install -yq python3-venv a2ps parallel\
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && apt-get install ffmpeg libsm6 libxext6  -y
 
 RUN python -m venv --system-site-packages /env
