@@ -5,13 +5,14 @@ import matplotlib
 from absl import app, flags
 import numpy as np
 import tensorflow as tf
-from Models.UNet import UNetCompiled
+from keras.metrics import MeanIoU
 
 from config import validate_config
 from DatasetHelpers.Dataset import convert_to_tfds, create_dataset
-from Models.XGB import Batched_XGBoost
-from keras.metrics import MeanIoU
 
+from Models.XGB import Batched_XGBoost
+from Models.UNet import UNetCompiled
+from transunet import TransUNet
 script_path = os.path.dirname(os.path.realpath(__file__))
 
 font = {
@@ -28,14 +29,18 @@ flags.DEFINE_bool("debug", False, "Set logging level to debug")
 flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
 flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
 flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
-flags.DEFINE_string('hand_co', '/workspaces/Thesis/10m_data/coherence/hand_labeled/co_event', 'filepath of handlabelled coevent data')
-flags.DEFINE_string('hand_pre', '/workspaces/Thesis/10m_data/coherence/hand_labeled/pre_event', 'filepath of handlabelled preevent data')
 flags.DEFINE_string('s2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepath of S2-weak labelled data')
 flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
 flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
 
+flags.DEFINE_string('hand_coh_co', '/workspaces/Thesis/10m_hand/coherence_10m/hand_labeled/co_event', '(h) filepath of coevent data')
+flags.DEFINE_string('hand_coh_pre', '/workspaces/Thesis/10m_hand/coherence_10m/hand_labeled/pre_event', '(h) filepath of preevent data')
+flags.DEFINE_string('hand_s1_co', '/workspaces/Thesis/10m_hand/HandLabeled/S1Hand', '(h) filepath of Sentinel-1 coevent data')
+flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD_Hand_Labeled', '(h) filepath of Sentinel-1 prevent data')
+flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
+
 # Model specific flags
-flags.DEFINE_string("model", None, "'xgboost', 'unet', 'a-unet")
+flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet")
 flags.DEFINE_integer('xgb_batches', 4, 'batches to use for splitting xgboost training to fit in memory')
 
 # NN training Hyperparameters
@@ -65,7 +70,7 @@ def main(x):
         # Generic tensorflow NN hyperparameter and dataset creation
         model=None
         dataset = create_dataset(FLAGS)
-        train_ds, val_ds, test_ds, = convert_to_tfds(dataset, channel_size)
+        train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size)
         
         lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
             FLAGS.lr,
@@ -93,6 +98,16 @@ def main(x):
                 metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
 
+        if FLAGS.model == "transunet":
+            model = TransUNet(image_size=512, channels=channel_size, patch_size=16, grid=(32,32), num_classes=2, hybrid=False, pretrain=False)
+            print(model.summary())
+            
+            # Logits false bc thats what the transunet github uses and I dont want to mess with it
+            model.compile(
+                loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
+                optimizer=opt,
+                metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
+            )
 
         results = model.fit(train_ds, epochs=FLAGS.epochs, validation_data=val_ds, validation_steps=32)
         model.save(f"Results/Models/{FLAGS.savename}")

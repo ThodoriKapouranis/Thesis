@@ -66,12 +66,12 @@ class Dataset:
 
 def convert_to_tfds(ds:Dataset, channel_size:int) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     '''
-    Returns the created dataset as a tf.data.Dataset class.
+    Returns the created datasets as multiple tf.data.Dataset classes.
     Returns:
         --  train_ds:     tf.data.Dataset
         --  val_ds  :     tf.data.Dataset
         --  test_ds (holdout) :     tf.data.Dataset
-        // hand_ds : tf.data.Dataset
+        --  hand_ds : tf.data.Dataset
     '''
     # Samples will be converted to a list of string paths where the last string is the test label path
     train_samples = []

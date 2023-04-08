@@ -8,8 +8,7 @@ FROM tensorflow/tensorflow:2.11.0-gpu
 RUN apt-get update -qq \
     && apt-get install -yq python3-venv a2ps parallel\
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && apt-get install ffmpeg libsm6 libxext6  -y
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* 
 
 RUN python -m venv --system-site-packages /env
 ENV VIRTUAL_ENV /env
@@ -17,6 +16,9 @@ ENV PATH "/env/bin:$PATH"
 
 ADD requirements.txt .
 RUN pip install --upgrade pip
+
+# Check if this fixes the dependency issue
+RUN pip install opencv-python 
 RUN pip install -r requirements.txt
 
 
