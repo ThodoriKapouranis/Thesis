@@ -41,11 +41,16 @@ flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/Labe
 
 # Model specific flags
 flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet")
+
+# XGB boost specific parameters
 flags.DEFINE_integer('xgb_batches', 4, 'batches to use for splitting xgboost training to fit in memory')
 
 # NN training Hyperparameters
 flags.DEFINE_integer("epochs", 10, "Number of epochs to train model for")
 flags.DEFINE_float("lr", 1e-4, "Defines starting learning rate")
+
+# Transunet specific parameters
+flags.DEFINE_integer("patch_size", 16, "Patch size to use for transformer (ViT) model")
 
 # Define model metadata
 flags.DEFINE_string("savename", None, "Name to use to save the model")
@@ -99,7 +104,22 @@ def main(x):
             )
 
         if FLAGS.model == "transunet":
-            model = TransUNet(image_size=512, channels=channel_size, patch_size=16, grid=(32,32), num_classes=2, hybrid=False, pretrain=False)
+            grid_size = (512 // FLAGS.patch_size, 512 // FLAGS.patch_size )
+            # Depending on our grid size our decoder structure will need to have more Conv2dRelu + upscaling layers to get back to the original 512x512 size.
+            decoderblock_amount = int(np.log2( 512 //  grid_size[0]))
+            decoder_channels = [ 16 * 2**x for x in reversed(range(decoderblock_amount)) ]
+            print(grid_size)
+            print(decoder_channels)
+            model = TransUNet(
+                image_size=512, 
+                channels=channel_size, 
+                patch_size=FLAGS.patch_size, 
+                grid=grid_size,
+                decoder_channels=decoder_channels,
+                num_classes=2, 
+                hybrid=False, 
+                pretrain=False
+            )
             print(model.summary())
             
             # Logits false bc thats what the transunet github uses and I dont want to mess with it
