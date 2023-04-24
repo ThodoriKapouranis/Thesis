@@ -48,9 +48,11 @@ flags.DEFINE_integer('xgb_batches', 4, 'batches to use for splitting xgboost tra
 # NN training Hyperparameters
 flags.DEFINE_integer("epochs", 10, "Number of epochs to train model for")
 flags.DEFINE_float("lr", 1e-4, "Defines starting learning rate")
+flags.DEFINE_integer("embedding_size", 768, "Embedding (hidden) layer to use for transunet model")
 
 # Transunet specific parameters
 flags.DEFINE_integer("patch_size", 16, "Patch size to use for transformer (ViT) model")
+
 
 # Define model metadata
 flags.DEFINE_string("savename", None, "Name to use to save the model")
@@ -111,7 +113,8 @@ def main(x):
             print(grid_size)
             print(decoder_channels)
             model = TransUNet(
-                image_size=512, 
+                image_size=512,
+                hidden_size=FLAGS.embedding_size,
                 channels=channel_size, 
                 patch_size=FLAGS.patch_size, 
                 grid=grid_size,
