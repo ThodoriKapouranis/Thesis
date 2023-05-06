@@ -1,0 +1,63 @@
+Hand labelled Datatset
+Scenario 1 5 epochs
+Water IoU:               55.740208394436706:.2f
+Water Precision:                 69.59456169586417:.2f
+Water Recall:            73.68419276958849:.2f
+Water F1:                71.58101169771882:.2f
+
+Scenario 2 5 epochs
+Water IoU:               51.97349258038664:.2f
+Water Precision:                 76.88923898114842:.2f
+Water Recall:            61.59586455765045:.2f
+Water F1:                68.39810245578869:.2f
+
+Scenario 3 5 epochs
+Water IoU:               56.31438866484374:.2f
+Water Precision:                 74.35884365560777:.2f
+Water Recall:            69.88534552211917:.2f
+Water F1:                72.05272546673659:.2f
+
+
+
+# Now doing everything in the Kahan servers
+Scenario 1 5 epochs
+Water IoU:               50.464331716078334:.2f
+Water Precision:                 72.60056515813757:.2f
+Water Recall:            62.33644935486613:.2f
+Water F1:                67.07813225968134:.2f
+
+Scenario 1 20 epochs 
+Water IoU:               39.47929967008825:.2f
+Water Precision:                 86.33628635911262:.2f
+Water Recall:            42.110379226163246:.2f
+Water F1:                56.60954674058305:.2f
+
+Scenario 1 20 epochs 0.001lr
+Water IoU:               50.87629597570741:.2f
+Water Precision:                 79.10333663344218:.2f
+Water Recall:            58.775723371780906:.2f
+Water F1:                67.44107236553447:.2f
+
+Scenario 1 32x32  20 epochs
+Water IoU:               48.92387738271254:.2f
+Water Precision:                 69.6196283584371:.2f
+Water Recall:            62.20394084282377:.2f
+Water F1:                65.70320118242066:.2f
+
+scenario 1 64x64 20 epochs
+Water IoU:               44.09575851282072:.2f
+Water Precision:                 70.53580328226839:.2f
+Water Recall:            54.05194808700029:.2f
+Water F1:                61.203409410412824:.2f
+
+Scenario 1 16x16 20epochs hidden layers x2
+Water IoU:               47.837302968100964:.2f
+Water Precision:                 65.83307331095396:.2f
+Water Recall:            63.636487546035205:.2f
+Water F1:                64.71614674737792:.2f
+
+Scenario 1 16x16 20epochs hidden layers x1/2
+Water IoU:               50.50176687672292:.2f
+Water Precision:                 75.26562570243614:.2f
+Water Recall:            60.550978463149576:.2f
+Water F1:                67.1111946720058:.2f

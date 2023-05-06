@@ -1,0 +1,41 @@
+Sri Lanka
+
+Scenario 1 - Unet 64
+Water IoU:               58.44189413677847:.2f
+Water Precision:                 66.06843958910476:.2f
+Water Recall:            83.50596128079498:.2f
+Water F1:                73.77075924922636:.2f
+
+Scenario 2 - Unet 64
+Water IoU:               60.06186534565339:.2f
+Water Precision:                 66.63849077577298:.2f
+Water Recall:            85.88735639372176:.2f
+Water F1:                75.04831362042404:.2f
+	
+
+Scenario 3 - Unet 64
+Water IoU:               60.689018968254395:.2f
+Water Precision:         66.47851387294837:.2f
+Water Recall:            87.45087574423691:.2f
+Water F1:                75.53598790747994:.2f
+
+
+
+Hand labelled 
+Scenario 1 - Unet 64
+Water IoU:               58.06638450151939:.2f
+Water Precision:                 72.40026345120289:.2f
+Water Recall:            74.57364215549339:.2f
+Water F1:                73.47088336921028:.2f
+
+Scenario 2 - Unet 64
+Water IoU:               58.15938081767547:.2f
+Water Precision:                 69.32592990726165:.2f
+Water Recall:            78.31151848358117:.2f
+Water F1:                73.54528136996313:.2f
+
+Scenario 3 - Unet 64
+Water IoU:               59.26336039900667:.2f
+Water Precision:                 68.33279024890498:.2f
+Water Recall:            81.70221954119316:.2f
+Water F1:                74.42183845742376:.2f
