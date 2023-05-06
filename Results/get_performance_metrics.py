@@ -51,8 +51,8 @@ Recall = TP / (TP + FN)
 def main(x):
     # USING: Saving whole models so that the architecture does not need to be initialized.
     # IGNORE:  when restoring a model from weights-only, create a model with the same architecture as the original model and then set its weights.
-
     model = tf.keras.models.load_model(FLAGS.model_path)
+    print(model.summary())
     dataset = create_dataset(FLAGS)
     channels = 2
     if FLAGS.scenario == 2:

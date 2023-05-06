@@ -46,12 +46,13 @@ flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet")
 flags.DEFINE_integer('xgb_batches', 4, 'batches to use for splitting xgboost training to fit in memory')
 
 # NN training Hyperparameters
-flags.DEFINE_integer("epochs", 10, "Number of epochs to train model for")
+flags.DEFINE_integer("epochs", 5, "Number of epochs to train model for")
 flags.DEFINE_float("lr", 1e-4, "Defines starting learning rate")
 flags.DEFINE_integer("embedding_size", 768, "Embedding (hidden) layer to use for transunet model")
 
 # Transunet specific parameters
 flags.DEFINE_integer("patch_size", 16, "Patch size to use for transformer (ViT) model")
+flags.DEFINE_list("decoder_channels", None, "Custom decoder channels to use for Decoder Cup stage (list of strings)")
 
 
 # Define model metadata
@@ -108,10 +109,20 @@ def main(x):
         if FLAGS.model == "transunet":
             grid_size = (512 // FLAGS.patch_size, 512 // FLAGS.patch_size )
             # Depending on our grid size our decoder structure will need to have more Conv2dRelu + upscaling layers to get back to the original 512x512 size.
-            decoderblock_amount = int(np.log2( 512 //  grid_size[0]))
-            decoder_channels = [ 16 * 2**x for x in reversed(range(decoderblock_amount)) ]
+                
+            decoder_channels = FLAGS.decoder_channels
+
+            if decoder_channels == None:
+                # Generate decoder channels that accomodate the patch size to ensure image gets upscaled back to original resolution
+                decoderblock_amount = int(np.log2( 512 //  grid_size[0]))
+                decoder_channels = [ 16 * 2**x for x in reversed(range(decoderblock_amount)) ]
+            else:
+                # Ensure that list objects are ints
+                decoder_channels = [int(x) for x in decoder_channels]
+
             print(grid_size)
             print(decoder_channels)
+
             model = TransUNet(
                 image_size=512,
                 hidden_size=FLAGS.embedding_size,
