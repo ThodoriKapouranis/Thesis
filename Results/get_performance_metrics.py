@@ -61,46 +61,87 @@ def main(x):
         channels = 6
 
     _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels)
-    
-    def calculate_metrics(model, dataset:tf.data.Dataset):
+    print(tf.executing_eagerly())
+    @tf.function
+    def calculate_metrics(img: tf.Tensor, tgt: tf.Tensor, wgt: tf.Tensor):
+        print('...')
         TP, FP, TN, FN = 0, 0, 0, 0
-        for scene in dataset.as_numpy_iterator():
-            img, tgt, _ = scene             # Do not need weights
-            logits = model.predict(img)
-            pred = tf.argmax(logits, axis=3)
-            pred, tgt = np.ravel(pred), np.ravel(tgt)
+        logits = model(img)
+        pred = tf.argmax(logits, axis=3)
+        pred = tf.reshape(pred, [-1])
+        pred = tf.cast(pred, tf.float32)
+        
+        tgt = tf.reshape(tgt, [-1])
+        tgt =  tf.cast(tgt, tf.float32)
 
-            for i in range(len(pred)):
-                if pred[i] == tgt[i] == 1:
-                    TP += 1
-                elif pred[i]==1 and tgt[i]!=pred[i]:
-                    FP += 1
-                elif pred[i] == tgt[i] == 0:
-                    TN += 1
-                elif pred[i]==0 and tgt[i]!=pred[i]:
-                    FN += 1
+        pred_1 = tf.math.equal(pred, tf.ones(shape = pred.shape) )
+        pred_0 = tf.math.equal(pred, tf.zeros(shape = pred.shape) )
+        tgt_1 = tf.math.equal(tgt, tf.ones(shape = tgt.shape) )
+        tgt_0 = tf.math.equal(tgt, tf.zeros(shape = tgt.shape) )
+    
+        print('calculating nonzero - TP')
+        TP = tf.math.count_nonzero( 
+            tf.boolean_mask(
+                tf.math.equal(pred_1, tgt_1),
+                mask = tgt_1
+            )
+        )
 
-        water_IoU = TP / (TP + FP + FN)
-        water_p = TP / (TP + FP)
-        water_r = TP / (TP + FN)
-        water_f = (2*water_p * water_r) / (water_p + water_r)
+        print('calculating nonzero - FP') # Prediction is 1 when target is 0
+        FP = tf.math.count_nonzero( 
+            tf.boolean_mask(
+                tf.math.equal(pred_1, tgt_0),
+                mask = pred_1
+            )
+        )
+        
+        print('calculating nonzero - TN')
+        TN = tf.math.count_nonzero( 
+            tf.boolean_mask(
+                tf.math.equal(pred_0, tgt_0),
+                mask = tgt_0
+            )
+        )
 
-        return  water_IoU, water_p, water_r, water_f
+        print('calculating nonzero - FN')
+        FN = tf.math.count_nonzero( 
+            tf.boolean_mask(
+                tf.math.equal(pred_0, tgt_1),
+                mask = pred_0
+            )
+        )
+        return TP, FP, TN , FN
+    
+    metrics = hand_set.map( lambda x, y, z: tf.numpy_function(func=calculate_metrics, inp=[x, y, z], Tout=(tf.int64, tf.int64, tf.int64, tf.int64)) )
+    metrics = np.array(list(metrics.as_numpy_iterator()))
+    
+    print(metrics.shape)
+    TP = np.sum(metrics[:,0])
+    FP = np.sum(metrics[:,1])
+    TN = np.sum(metrics[:,2])
+    FN = np.sum(metrics[:,3])
+    
+    print(TP, FP, TN, FN)
+    hand_water_IoU = TP / (TP + FP + FN)
+    hand_water_p = TP / (TP + FP)
+    hand_water_r = TP / (TP + FN)
+    hand_water_f = (2*hand_water_p * hand_water_r) / (hand_water_p + hand_water_r)
 
-    hand_water_IoU, hand_water_p, hand_water_r, hand_water_f = calculate_metrics(model, hand_set)
-    # hold_water_IoU, hold_water_p, hold_water_r, hold_water_f = calculate_metrics(model, holdout_set)
 
-    # print(f'Water IoU:\t\t {100 * hold_water_IoU}:.2f')
-    # print(f'Water Precision:\t\t {100 * hold_water_p}:.2f')
-    # print(f'Water Recall:\t\t {100 * hold_water_r}:.2f')
-    # print(f'Water F1:\t\t {100 * hold_water_f}:.2f')
-    print('\n')
-    print(f'Water IoU:\t\t {100 * hand_water_IoU}:.2f')
-    print(f'Water Precision:\t\t {100 * hand_water_p}:.2f')
-    print(f'Water Recall:\t\t {100 * hand_water_r}:.2f')
-    print(f'Water F1:\t\t {100 * hand_water_f}:.2f')
+    # return  water_IoU, water_p, water_r, water_f
 
+    # hand_water_IoU, hand_water_p, hand_water_r, hand_water_f = calculate_metrics(model, hand_set)
+    # # hold_water_IoU, hold_water_p, hold_water_r, hold_water_f = calculate_metrics(model, holdout_set)
 
+    # # print(f'Water IoU:\t\t {100 * hold_water_IoU}:.2f')
+    # # print(f'Water Precision:\t\t {100 * hold_water_p}:.2f')
+    # # print(f'Water Recall:\t\t {100 * hold_water_r}:.2f')
+    # # print(f'Water F1:\t\t {100 * hold_water_f}:.2f')
+    # print('\n')
+    print(f'Water IoU:\t\t {(100 * hand_water_IoU):.3f}')
+    print(f'Water Precision:\t{(100 * hand_water_p):.3f}')
+    print(f'Water Recall:\t\t {(100 * hand_water_r):.3f}')
+    print(f'Water F1:\t\t {(100 * hand_water_f):.3f}')
 
 if __name__ == "__main__":
     app.run(main)
