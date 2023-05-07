@@ -32,7 +32,15 @@ missing_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white",
 wrong_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "red"])
 def main(x):
     model = tf.keras.models.load_model(FLAGS.model_path)
-    print
+    model_name = FLAGS.model_path.split('/')[-1]
+    if model_name == '': # Look back one more slash
+        model_name = FLAGS.model_path.split('/')[-2]
+    
+    try:
+        os.mkdir(f"/workspaces/Thesis/Results/Sample images/{model_name}/")
+    except:
+        pass
+
     # print(model.summary())
     dataset = create_dataset(FLAGS)
     channels = 2
@@ -54,11 +62,9 @@ def main(x):
         FN_mask = np.ma.masked_where(pred==1, pred)
         FP_mask = np.ma.masked_where(tgt==1, pred)
 
-
-
         f, ax = plt.subplots(1,2)
-        f.set_figwidth(10)
-        f.set_figheight(10)
+        f.set_figwidth(5)
+        f.set_figheight(5)
 
         ax[0].imshow(tgt, cmap=correct_cmap, interpolation='none')
         
@@ -67,7 +73,7 @@ def main(x):
         ax[1].imshow(np.ma.masked_array(tgt, FN_mask), cmap=missing_cmap, interpolation='none') # <--- Ground truth as gray, to show missed spots
         ax[1].imshow(FP_mask, cmap=wrong_cmap, interpolation='none')
 
-        f.savefig(f"Results/Sample images/{FLAGS.model_path.split('/')[-1]}/{i}")
+        f.savefig(f"Results/Sample images/{model_name}/{i}")
 
 if __name__ == "__main__":
     app.run(main)
