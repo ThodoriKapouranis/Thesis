@@ -64,7 +64,7 @@ class Dataset:
 
         return self.batches        
 
-def convert_to_tfds(ds:Dataset, channel_size:int) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+def convert_to_tfds(ds:Dataset, channel_size:int) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     '''
     Returns the created datasets as multiple tf.data.Dataset classes.
     Returns:

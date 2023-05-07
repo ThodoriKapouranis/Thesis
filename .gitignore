@@ -4,5 +4,6 @@ papers/
 _pycache/
 Notes/
 Results/Models
+Results/Sample images
 Results/Debug
 *.pyc
