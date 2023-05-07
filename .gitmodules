@@ -1,3 +1,6 @@
 [submodule "Models/TransUNet-tf"]
 	path = Models/TransUNet-tf
 	url = https://github.com/ThodoriKapouranis/TransUNet-tf
+[submodule "Models/transformers"]
+	path = Models/transformers
+	url = https://github.com/huggingface/transformers.git
