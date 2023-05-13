@@ -111,6 +111,9 @@ def main(x):
 
         if FLAGS.model == "transunet":
             train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC')
+            for img, tgt, wgt in train_ds.take(1):
+                print(img.shape, tgt.shape, wgt.shape)
+
 
             grid_size = (512 // FLAGS.patch_size, 512 // FLAGS.patch_size )
             # Depending on our grid size our decoder structure will need to have more Conv2dRelu + upscaling layers to get back to the original 512x512 size.
@@ -149,6 +152,9 @@ def main(x):
 
         if FLAGS.model == 'segformer':
             train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'CHW')
+            for img, tgt, _ in train_ds.take(1):
+                print(img.shape, tgt.shape)
+
             # Huggingface models require datasets to be in Channel first format.
             segformer_config = SegformerConfig(
                 num_channels = channel_size
@@ -156,7 +162,7 @@ def main(x):
             model = TFSegformerForSemanticSegmentation(segformer_config)
 
             model.compile(
-                loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
+                # loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
                 optimizer=opt,
                 metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )

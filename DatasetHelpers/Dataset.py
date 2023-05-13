@@ -112,12 +112,12 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
     This function takes in options to adjust the dataset reading functions to accomodate different datasets.
     @parmams:
         - channel_size = Channel size of the dataset (3 for rgb)
-        - format : image dimension order. "HWC" or "CWH"
+        - format : image dimension order. "HWC" or "CHW"
     '''
     
     def apply_transpose(x:np.float32):
         # Assume x is read directly from rasterio, which should be 
-        if format == "CWH":
+        if format == "CHW":
             return x 
         elif format == "HWC":
             return np.transpose(x, axes=(0,2,3,1))
@@ -136,12 +136,12 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
             with rasterio.open(train_path) as src:
                 tmp_img = src.read()
                 
-                # First image to be appended to the list
+                # First image/"channel" to be appended to the list
                 if img == []: 
                     img.append(tmp_img)
                     img = np.asarray(img) # --> (1, 2, 512, 512)
                 
-                # Subsequent image samples will be np.appended to perserve shape
+                # Subsequent channels will be np.appended to perserve shape
                 else:
                     tmp_img = np.expand_dims(tmp_img, axis=0)
                     img = np.append(img, tmp_img, axis=1) # --> (1, 2+, 512, 512)
@@ -163,10 +163,14 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
         # fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_training.png")
         
         # ## MASKING
-        nans = np.isnan(img[0,:,:,:]).any(axis=-1)
+        if format == "HWC":
+            nans = np.isnan(img[0,:,:,:]).any(axis=-1)
+        elif format == "CHW":
+            nans = np.isnan(img[0,:,:,:]).any(axis=0)
+
         tgt_masked = np.ma.masked_array(tgt, mask=nans)
         
-        # ## NAN IMPUTATION
+        ### NAN IMPUTATION for input
         if np.count_nonzero(nans) > 0:
             img = np.nan_to_num(img, nan=0.0)
         
@@ -200,9 +204,16 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
     def tf_read_sample(data_path:str) -> dict:
         [img, tgt, weight] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32, tf.float32])
         # todo: These shapes need to be changed given scenario flags
-        img.set_shape((1, 512, 512, channel_size))
-        tgt.set_shape((1, 512, 512, 1))
-        weight.set_shape((1, 512, 512, 1))
+        if format == "HWC":
+            img.set_shape((1, 512, 512, channel_size))
+            tgt.set_shape((1, 512, 512, 1))
+            weight.set_shape((1, 512, 512, 1))
+        
+        elif format == "CHW":
+            img.set_shape((1, channel_size, 512, 512))
+            tgt.set_shape((1, 1, 512, 512))
+            weight.set_shape((1, 1, 512, 512))
+
         return {'image': img, 'target': tgt, 'weight': weight}
     
     return tf_read_sample
@@ -219,14 +230,14 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
 @tf.function
 def load_sample(sample: dict) -> tuple:
   # convert to tf image
-  image = tf.image.resize(sample['image'], (512, 512))
-  target = tf.image.resize(sample['target'], (512, 512))
-  weight = tf.image.resize(sample['weight'], (512, 512))
+#   image = tf.image.resize(sample['image'], (512, 512))
+#   target = tf.image.resize(sample['target'], (512, 512))
+#   weight = tf.image.resize(sample['weight'], (512, 512))
 
   # cast to proper data types
-  image = tf.cast(image, tf.float32)
-  target = tf.cast(target, tf.float32)
-  weight = tf.cast(weight, tf.float32)
+  image = tf.cast(sample['image'], tf.float32)
+  target = tf.cast(sample['target'], tf.float32)
+  weight = tf.cast(sample['weight'], tf.float32)
   return image, target, weight
 
 
