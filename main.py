@@ -13,6 +13,9 @@ from DatasetHelpers.Dataset import convert_to_tfds, create_dataset
 from Models.XGB import Batched_XGBoost
 from Models.UNet import UNetCompiled
 from transunet import TransUNet
+from transformers import SegformerConfig, TFSegformerForSemanticSegmentation
+from transformers import TFTrainingArguments, TFTrainer
+
 script_path = os.path.dirname(os.path.realpath(__file__))
 
 font = {
@@ -40,7 +43,7 @@ flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
 
 # Model specific flags
-flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet")
+flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet', 'segformer'")
 
 # XGB boost specific parameters
 flags.DEFINE_integer('xgb_batches', 4, 'batches to use for splitting xgboost training to fit in memory')
@@ -142,6 +145,39 @@ def main(x):
                 optimizer=opt,
                 metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
+
+        if FLAGS.model == 'segformer':
+            segformer_config = SegformerConfig(
+                num_channels = channel_size
+            )
+            model = TFSegformerForSemanticSegmentation(segformer_config)
+
+            model.compile(
+                loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
+                optimizer=opt,
+                metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
+            )
+
+            print(model.summary())
+            exit(1)
+
+
+            # training_args = TFTrainingArguments(
+            #     output_dir="test_trainer", 
+            #     evaluation_strategy="epoch",
+            #     num_train_epochs=FLAGS.epochs,
+            #     learning_rate=FLAGS.lr
+            # )
+
+            # trainer = TFTrainer(
+            #     model,
+            #     args=training_args,
+            #     train_dataset=train_ds,
+            #     eval_dataset=val_ds,
+            # )
+
+            # trainer.train()
+
 
         results = model.fit(train_ds, epochs=FLAGS.epochs, validation_data=val_ds, validation_steps=32)
         model.save(f"Results/Models/{FLAGS.savename}")

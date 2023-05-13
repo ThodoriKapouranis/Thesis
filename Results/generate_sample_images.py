@@ -27,9 +27,9 @@ flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
 
 
-correct_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "skyblue"])
+correct_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "blue"])
 missing_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "lightgrey"])
-wrong_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "red"])
+wrong_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "magenta"])
 def main(x):
     model = tf.keras.models.load_model(FLAGS.model_path)
     model_name = FLAGS.model_path.split('/')[-1]

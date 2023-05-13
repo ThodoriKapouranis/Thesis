@@ -11,3 +11,5 @@ opencv-python-headless
 tensorflow-addons
 validators
 transunet
+evaluate
+transformers
