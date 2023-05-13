@@ -64,7 +64,7 @@ class Dataset:
 
         return self.batches        
 
-def convert_to_tfds(ds:Dataset, channel_size:int) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC') -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     '''
     Returns the created datasets as multiple tf.data.Dataset classes.
     Returns:
@@ -79,7 +79,7 @@ def convert_to_tfds(ds:Dataset, channel_size:int) -> Tuple[tf.data.Dataset, tf.d
     test_samples = []
     hand_samples = []
     
-    tf_read_sample = tf_read_sample_channelfix(channel_size)
+    tf_read_sample = construct_read_sample_function(channel_size, format=format)
 
     for x, y in zip(ds.x_train, ds.y_train): train_samples.append((*x, *y))
     for x, y in zip(ds.x_val, ds.y_val): val_samples.append((*x, *y))
@@ -106,82 +106,95 @@ def convert_to_tfds(ds:Dataset, channel_size:int) -> Tuple[tf.data.Dataset, tf.d
 
     return train_ds, val_ds, test_ds, hand_ds
 
-def read_sample(data_path:str) -> tuple:
-    # Used by tf_read_sample to show tensorflow how to load our data in its own automatic batching process.
-    #! Hardcode this for now
-    #! Please please please figure out how to change this later. yucky
-    CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174} 
-    path = data_path.numpy() # 0:-1 --> training paths
-    img = []
-    tgt = list()
 
-    for train_path in path[0:-1]:
-        train_path = train_path.decode('utf-8')
-        with rasterio.open(train_path) as src:
-            tmp_img = src.read()
-            
-            # First image to be appended to the list
-            if img == []: 
-                img.append(tmp_img)
-                img = np.asarray(img) # --> (1, 2, 512, 512)
-            
-            # Subsequent image samples will be np.appended to perserve shape
-            else:
-                tmp_img = np.expand_dims(tmp_img, axis=0)
-                img = np.append(img, tmp_img, axis=1) # --> (1, 2+, 512, 512)
+def construct_read_sample_function(channel_size:int, format:str = "HWC"):
+    '''
+    This function takes in options to adjust the dataset reading functions to accomodate different datasets.
+    @parmams:
+        - channel_size = Channel size of the dataset (3 for rgb)
+        - format : image dimension order. "HWC" or "CWH"
+    '''
     
+    def apply_transpose(x:np.float32):
+        # Assume x is read directly from rasterio, which should be 
+        if format == "CWH":
+            return x 
+        elif format == "HWC":
+            return np.transpose(x, axes=(0,2,3,1))
+    
+    def read_sample(data_path:str) -> tuple:
+        # Used by tf_read_sample to show tensorflow how to load our data in its own automatic batching process.
+        #! Hardcode this for now
+        #! Please please please figure out how to change this later. yucky
+        CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174} 
+        path = data_path.numpy() # 0:-1 --> training paths
+        img = []
+        tgt = list()
 
-    # img = np.squeeze(np.asarray(img))
-    img = np.transpose(img, axes=(0,2,3,1)) # 1 H W C format
-    # img = np.expand_dims(img, axis=0)
+        for train_path in path[0:-1]:
+            train_path = train_path.decode('utf-8')
+            with rasterio.open(train_path) as src:
+                tmp_img = src.read()
+                
+                # First image to be appended to the list
+                if img == []: 
+                    img.append(tmp_img)
+                    img = np.asarray(img) # --> (1, 2, 512, 512)
+                
+                # Subsequent image samples will be np.appended to perserve shape
+                else:
+                    tmp_img = np.expand_dims(tmp_img, axis=0)
+                    img = np.append(img, tmp_img, axis=1) # --> (1, 2+, 512, 512)
+    
+        # Apply appropriate transpose to get into correct format
+        img = apply_transpose(img) 
 
-    tgt_path = path[-1].decode('utf-8')
-    with rasterio.open(tgt_path) as src:
-        tgt = src.read()
+        tgt_path = path[-1].decode('utf-8')
+        with rasterio.open(tgt_path) as src:
+            tgt = src.read()
+            
+            for old_val, new_val in label_remapping.items():
+                tgt[tgt == old_val] = new_val
+
+        ## DEBUG TRAINING DATA
+        # fig1, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+        # ax1.imshow(img[0,:,:,0], cmap='Greys')
+        # ax2.imshow(img[0,:,:,1], cmap='Greys')
+        # fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_training.png")
         
-        for old_val, new_val in label_remapping.items():
-            tgt[tgt == old_val] = new_val
+        # ## MASKING
+        nans = np.isnan(img[0,:,:,:]).any(axis=-1)
+        tgt_masked = np.ma.masked_array(tgt, mask=nans)
+        
+        # ## NAN IMPUTATION
+        if np.count_nonzero(nans) > 0:
+            img = np.nan_to_num(img, nan=0.0)
+        
+        ## DEBUG MASKING
+        # if np.count_nonzero(nans) > 0:
+        #     # print(nans.shape, np.count_nonzero(nans))
 
-    ## DEBUG TRAINING DATA
-    # fig1, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
-    # ax1.imshow(img[0,:,:,0], cmap='Greys')
-    # ax2.imshow(img[0,:,:,1], cmap='Greys')
-    # fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_training.png")
-    
-    # ## MASKING
-    nans = np.isnan(img[0,:,:,:]).any(axis=-1)
-    tgt_masked = np.ma.masked_array(tgt, mask=nans)
-    
-    # ## NAN IMPUTATION
-    if np.count_nonzero(nans) > 0:
-        img = np.nan_to_num(img, nan=0.0)
-    
-    ## DEBUG MASKING
-    # if np.count_nonzero(nans) > 0:
-    #     # print(nans.shape, np.count_nonzero(nans))
+        #     fig1, (ax1, ax2, ax3, ax4) = plt.subplots(nrows=1, ncols=4)
 
-    #     fig1, (ax1, ax2, ax3, ax4) = plt.subplots(nrows=1, ncols=4)
+        #     ax1.imshow(nans, cmap='Greys')
+        #     ax2.imshow(img[0,:,:,-1], cmap='Greys')
+        #     ax3.imshow(tgt.reshape((512,512)), cmap='Greys')
+        #     ax4.imshow(tgt_masked.reshape((512,512)), cmap='Greys')
 
-    #     ax1.imshow(nans, cmap='Greys')
-    #     ax2.imshow(img[0,:,:,-1], cmap='Greys')
-    #     ax3.imshow(tgt.reshape((512,512)), cmap='Greys')
-    #     ax4.imshow(tgt_masked.reshape((512,512)), cmap='Greys')
+        #     fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_masks.png")
 
-    #     fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_masks.png")
+        # plt.close()
 
-    # plt.close()
+        
+        tgt_masked = np.expand_dims(tgt_masked, axis=0)
+        tgt_masked = apply_transpose(tgt_masked)
 
-    tgt_masked = np.transpose(tgt_masked, axes=(1,2,0))
-    tgt_masked = np.expand_dims(tgt_masked, axis=0)
+        ## Add the weighting
+        weights = np.ones(tgt_masked.shape, dtype=np.float32)
+        for k,v in CLASS_W.items():
+            weights[ tgt_masked == k] = v
 
-    ## Add the weighting
-    weights = np.ones(tgt_masked.shape, dtype=np.float32)
-    for k,v in CLASS_W.items():
-        weights[ tgt_masked == k] = v
-
-    return (img, tgt_masked, weights)
-
-def tf_read_sample_channelfix(channel_size:int):
+        return (img, tgt_masked, weights)
 
     @tf.function
     def tf_read_sample(data_path:str) -> dict:

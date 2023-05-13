@@ -76,12 +76,11 @@ def main(x):
         dataset = create_dataset(FLAGS)
         batches = dataset.generate_batches(FLAGS.xgb_batches)
         model.train_in_batches(batches)
-    
+        
     else:
         # Generic tensorflow NN hyperparameter and dataset creation
         model=None
         dataset = create_dataset(FLAGS)
-        train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size)
         
         lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
             FLAGS.lr,
@@ -100,6 +99,7 @@ def main(x):
         )
 
         if FLAGS.model == 'unet':
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC')
             model = UNetCompiled(input_size=(512, 512, channel_size), n_filters=64, n_classes=2)
             print(model.summary())
             
@@ -110,9 +110,10 @@ def main(x):
             )
 
         if FLAGS.model == "transunet":
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC')
+
             grid_size = (512 // FLAGS.patch_size, 512 // FLAGS.patch_size )
             # Depending on our grid size our decoder structure will need to have more Conv2dRelu + upscaling layers to get back to the original 512x512 size.
-                
             decoder_channels = FLAGS.decoder_channels
 
             if decoder_channels == None:
@@ -147,6 +148,8 @@ def main(x):
             )
 
         if FLAGS.model == 'segformer':
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'CHW')
+            # Huggingface models require datasets to be in Channel first format.
             segformer_config = SegformerConfig(
                 num_channels = channel_size
             )
@@ -157,9 +160,6 @@ def main(x):
                 optimizer=opt,
                 metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
-
-            print(model.summary())
-            exit(1)
 
 
             # training_args = TFTrainingArguments(
