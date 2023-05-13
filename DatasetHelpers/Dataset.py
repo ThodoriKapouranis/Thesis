@@ -236,7 +236,7 @@ def load_sample(sample: dict) -> tuple:
 
   # cast to proper data types
   image = tf.cast(sample['image'], tf.float32)
-  target = tf.cast(sample['target'], tf.float32)
+  target = tf.cast(sample['target'][:,0,:,:], tf.float32) # Get rid of channel dimension
   weight = tf.cast(sample['weight'], tf.float32)
   return image, target, weight
 

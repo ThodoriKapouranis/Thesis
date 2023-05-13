@@ -152,8 +152,8 @@ def main(x):
 
         if FLAGS.model == 'segformer':
             train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'CHW')
-            for img, tgt, _ in train_ds.take(1):
-                print(img.shape, tgt.shape)
+            for img, tgt, wgt in train_ds.take(1):
+                print(img.shape, tgt.shape, wgt.shape)
 
             # Huggingface models require datasets to be in Channel first format.
             segformer_config = SegformerConfig(
@@ -164,7 +164,7 @@ def main(x):
             model.compile(
                 # loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
                 optimizer=opt,
-                metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
+                # metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
 
 
