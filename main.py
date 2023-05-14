@@ -185,8 +185,11 @@ def main(x):
             # trainer.train()
 
 
-        results = model.fit(train_ds, epochs=FLAGS.epochs, validation_data=val_ds, validation_steps=32)
-        model.save(f"Results/Models/{FLAGS.savename}")
+        results = model.fit(train_ds.take(10), epochs=FLAGS.epochs, validation_data=val_ds, validation_steps=32)
+        if FLAGS.model == "segformer":
+            model.save_pretrained(f"Results/Models/{FLAGS.savename}")
+        else:
+            model.save(f"Results/Models/{FLAGS.savename}")
 
 if __name__ == "__main__":
     app.run(main)
