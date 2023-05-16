@@ -79,8 +79,6 @@ def main(x):
             logits = model(img)
             pred = tf.argmax(logits, axis=3) # BHWC
 
-        print(logits)
-        print(pred)
         FN_mask = np.ma.masked_where(pred==1, pred)
         FP_mask = np.ma.masked_where(tgt==1, pred)
 

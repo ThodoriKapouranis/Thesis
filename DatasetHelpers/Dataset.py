@@ -189,14 +189,15 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
 
         # plt.close()
 
-        
-        tgt_masked = np.expand_dims(tgt_masked, axis=0)
-        tgt_masked = apply_transpose(tgt_masked)
+        tgt_masked = tgt_masked[0,:,:] # Remove channels
 
         ## Add the weighting
         weights = np.ones(tgt_masked.shape, dtype=np.float32)
         for k,v in CLASS_W.items():
             weights[ tgt_masked == k] = v
+
+        # Remove batch
+        img = img[0,:,:,:]
 
         return (img, tgt_masked, weights)
 
@@ -205,14 +206,14 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
         [img, tgt, weight] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32, tf.float32])
         # todo: These shapes need to be changed given scenario flags
         if format == "HWC":
-            img.set_shape((1, 512, 512, channel_size))
-            tgt.set_shape((1, 512, 512, 1))
-            weight.set_shape((1, 512, 512, 1))
+            img.set_shape((512, 512, channel_size))
+            tgt.set_shape((512, 512))
+            weight.set_shape((512, 512))
         
         elif format == "CHW":
-            img.set_shape((1, channel_size, 512, 512))
-            tgt.set_shape((1, 1, 512, 512))
-            weight.set_shape((1, 1, 512, 512))
+            img.set_shape((channel_size, 512, 512))
+            tgt.set_shape((512, 512))
+            weight.set_shape((512, 512))
 
         return {'image': img, 'target': tgt, 'weight': weight}
     
@@ -236,7 +237,7 @@ def load_sample(sample: dict) -> tuple:
 
   # cast to proper data types
   image = tf.cast(sample['image'], tf.float32)
-  target = tf.cast(sample['target'][:,0,:,:], tf.float32) # Get rid of channel dimension
+  target = tf.cast(sample['target'], tf.float32) # Get rid of channel dimension
   weight = tf.cast(sample['weight'], tf.float32)
   return image, target, weight
 

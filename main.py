@@ -49,6 +49,7 @@ flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet', 'segformer'"
 flags.DEFINE_integer('xgb_batches', 4, 'batches to use for splitting xgboost training to fit in memory')
 
 # NN training Hyperparameters
+flags.DEFINE_integer("Batch_size", 1, "Batch size to use for training")
 flags.DEFINE_integer("epochs", 5, "Number of epochs to train model for")
 flags.DEFINE_float("lr", 1e-4, "Defines starting learning rate")
 flags.DEFINE_integer("embedding_size", 768, "Embedding (hidden) layer to use for transunet model")
@@ -152,38 +153,42 @@ def main(x):
 
         if FLAGS.model == 'segformer':
             train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'CHW')
-            for img, tgt, wgt in train_ds.take(1):
-                print(img.shape, tgt.shape, wgt.shape)
+            BATCH_SIZE = FLAGS.Batch_size
+            train_ds = (
+                train_ds
+                .cache()
+                .shuffle(BATCH_SIZE * 10)
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+            val_ds = (
+                val_ds
+                .cache()
+                .shuffle(BATCH_SIZE * 10)
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+
+            print(train_ds.element_spec)
+            for img, tgt, _ in train_ds.take(1):
+                print(img.shape, tgt.shape)
 
             # Huggingface models require datasets to be in Channel first format.
             segformer_config = SegformerConfig(
-                num_channels = channel_size
+                num_channels = channel_size,
+                depths= [ 3,6,40,3 ], # MiT-b5,
+                hidden_sizes = [64, 128, 320, 512], # MiT-b5
+                decoder_hidden_size= 768 #MiT-b5
             )
             model = TFSegformerForSemanticSegmentation(segformer_config)
+            model.build( (BATCH_SIZE, channel_size, 512, 512) )
 
             model.compile(
                 # loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
                 optimizer=opt,
                 # metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
-
-
-            # training_args = TFTrainingArguments(
-            #     output_dir="test_trainer", 
-            #     evaluation_strategy="epoch",
-            #     num_train_epochs=FLAGS.epochs,
-            #     learning_rate=FLAGS.lr
-            # )
-
-            # trainer = TFTrainer(
-            #     model,
-            #     args=training_args,
-            #     train_dataset=train_ds,
-            #     eval_dataset=val_ds,
-            # )
-
-            # trainer.train()
-
+        
 
         results = model.fit(train_ds, epochs=FLAGS.epochs, validation_data=val_ds, validation_steps=32)
         if FLAGS.model == "segformer":
