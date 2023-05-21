@@ -49,7 +49,7 @@ flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet', 'segformer'"
 flags.DEFINE_integer('xgb_batches', 4, 'batches to use for splitting xgboost training to fit in memory')
 
 # NN training Hyperparameters
-flags.DEFINE_integer("Batch_size", 1, "Batch size to use for training")
+flags.DEFINE_integer("batch_size", 1, "Batch size to use for training")
 flags.DEFINE_integer("epochs", 5, "Number of epochs to train model for")
 flags.DEFINE_float("lr", 1e-4, "Defines starting learning rate")
 flags.DEFINE_integer("embedding_size", 768, "Embedding (hidden) layer to use for transunet model")
@@ -153,7 +153,8 @@ def main(x):
 
         if FLAGS.model == 'segformer':
             train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'CHW')
-            BATCH_SIZE = FLAGS.Batch_size
+            BATCH_SIZE = FLAGS.batch_size
+            
             train_ds = (
                 train_ds
                 .cache()
@@ -176,9 +177,9 @@ def main(x):
             # Huggingface models require datasets to be in Channel first format.
             segformer_config = SegformerConfig(
                 num_channels = channel_size,
-                depths= [ 3,6,40,3 ], # MiT-b5,
-                hidden_sizes = [64, 128, 320, 512], # MiT-b5
-                decoder_hidden_size= 768 #MiT-b5
+                # depths= [ 3,6,40,3 ], # MiT-b5,
+                # hidden_sizes = [64, 128, 320, 512], # MiT-b5
+                # decoder_hidden_size= 768 #MiT-b5
             )
             model = TFSegformerForSemanticSegmentation(segformer_config)
             model.build( (BATCH_SIZE, channel_size, 512, 512) )
@@ -189,7 +190,7 @@ def main(x):
                 # metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
         
-
+        CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174}  # Empirical 
         results = model.fit(train_ds, epochs=FLAGS.epochs, validation_data=val_ds, validation_steps=32)
         if FLAGS.model == "segformer":
             model.save_pretrained(f"Results/Models/{FLAGS.savename}")
