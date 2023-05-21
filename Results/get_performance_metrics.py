@@ -71,6 +71,9 @@ def main(x):
     ds_format = "CHW" if architecture == "segformer" else "HWC"
 
     _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, ds_format)
+    hand_set = hand_set.batch(1)
+    holdout_set = holdout_set.batch(1)
+    
 
     @tf.function
     def calculate_metrics(img: tf.Tensor, tgt: tf.Tensor, wgt: tf.Tensor):

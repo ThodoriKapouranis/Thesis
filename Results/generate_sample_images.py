@@ -61,6 +61,8 @@ def main(x):
     ds_format = "CHW" if architecture == "segformer" else "HWC"
 
     _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, ds_format)
+    hand_set = hand_set.batch(1)
+    holdout_set = holdout_set.batch(1)
 
     for i, scene in enumerate( list(hand_set.take(5)) ):
         img, tgt, _ =  scene
@@ -71,17 +73,18 @@ def main(x):
 
         if architecture == "segformer":
             logits = model.predict(img).logits
+            print(logits.shape)
             pred = tf.argmax(logits, axis=1) # BCHW, outputs at factor of (1/4, 1/4)
             pred = np.transpose(pred, axes=[1,2,0]) # Convert to HWC
             tgt = np.transpose(tgt, axes=[1,2,0]) # Convert to HWC
             pred = tf.image.resize(pred, size=(512,512))
         else:
             logits = model(img)
+            print(logits.shape)
             pred = tf.argmax(logits, axis=3) # BHWC
 
         FN_mask = np.ma.masked_where(pred==1, pred)
         FP_mask = np.ma.masked_where(tgt==1, pred)
-
         f, ax = plt.subplots(1,2)
         f.set_figwidth(5)
         f.set_figheight(5)
