@@ -70,7 +70,8 @@ def main(x):
         # Huggingface models have a wrapper around the output. Need to access the logits.
         logits = None
         pred = None
-
+        
+        print(architecture)
         if architecture == "segformer":
             logits = model.predict(img).logits
             print(logits.shape)

@@ -8,6 +8,7 @@ import sys
 sys.path.append('../Thesis')
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
 from transformers import SegformerConfig, TFSegformerForSemanticSegmentation
+from transformers import TFAutoModelForSemanticSegmentation
 
 FLAGS = flags.FLAGS
 flags.DEFINE_bool("debug", False, "Set logging level to debug")
@@ -52,10 +53,12 @@ Recall = TP / (TP + FN)
 def main(x):
     # USING: Saving whole models so that the architecture does not need to be initialized.
     # IGNORE:  when restoring a model from weights-only, create a model with the same architecture as the original model and then set its weights.
-    model = tf.keras.Model()
+    model = None
     architecture = FLAGS.model_path.split('/')[-2].split('-')[0]
     if architecture == "segformer":
-        model = TFSegformerForSemanticSegmentation.from_pretrained(FLAGS.model_path)
+        model = TFAutoModelForSemanticSegmentation.from_pretrained(FLAGS.model_path)
+        model.trainable = False
+        print('*-- Set segformer untrainable')
     else:
         model = tf.keras.models.load_model(FLAGS.model_path)
 
@@ -102,7 +105,6 @@ def main(x):
         tgt_1 = tf.math.equal(tgt, tf.ones(shape = tgt.shape) )
         tgt_0 = tf.math.equal(tgt, tf.zeros(shape = tgt.shape) )
     
-        print('calculating nonzero - TP')
         TP = tf.math.count_nonzero( 
             tf.boolean_mask(
                 tf.math.equal(pred_1, tgt_1),
@@ -110,7 +112,7 @@ def main(x):
             )
         )
 
-        print('calculating nonzero - FP') # Prediction is 1 when target is 0
+        # Prediction is 1 when target is 0
         FP = tf.math.count_nonzero( 
             tf.boolean_mask(
                 tf.math.equal(pred_1, tgt_0),
@@ -118,7 +120,6 @@ def main(x):
             )
         )
         
-        print('calculating nonzero - TN')
         TN = tf.math.count_nonzero( 
             tf.boolean_mask(
                 tf.math.equal(pred_0, tgt_0),
@@ -126,7 +127,6 @@ def main(x):
             )
         )
 
-        print('calculating nonzero - FN')
         FN = tf.math.count_nonzero( 
             tf.boolean_mask(
                 tf.math.equal(pred_0, tgt_1),

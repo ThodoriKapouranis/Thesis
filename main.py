@@ -171,8 +171,8 @@ def main(x):
             )
 
             print(train_ds.element_spec)
-            for img, tgt, _ in train_ds.take(1):
-                print(img.shape, tgt.shape)
+            for img, tgt, wgt in train_ds.take(1):
+                print(img.shape, tgt.shape, wgt.shape)
 
             # Huggingface models require datasets to be in Channel first format.
             segformer_config = SegformerConfig(
@@ -184,9 +184,12 @@ def main(x):
             model = TFSegformerForSemanticSegmentation(segformer_config)
             model.build( (BATCH_SIZE, channel_size, 512, 512) )
 
+
+            opt = tf.keras.optimizers.Adam(learning_rate=FLAGS.lr)
             model.compile(
                 # loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
                 optimizer=opt,
+                weighted_metrics=[]
                 # metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
         
