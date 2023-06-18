@@ -162,7 +162,15 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
         # ax2.imshow(img[0,:,:,1], cmap='Greys')
         # fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_training.png")
         
-        # ## MASKING
+        ## PREPROCESSING PIPLINE
+        
+        ##  ## BORDER NOISE CORRECTION
+
+        ##  ## SPECKLE FILTER
+
+        ##  ## RADIOMETRIC TERRAIN NORMALIZATION
+
+        ##  ## MASKING
         if format == "HWC":
             nans = np.isnan(img[0,:,:,:]).any(axis=-1)
         elif format == "CHW":
@@ -170,11 +178,11 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
 
         tgt_masked = np.ma.masked_array(tgt, mask=nans)
         
-        ### NAN IMPUTATION for input
+        #### NAN IMPUTATION for input
         if np.count_nonzero(nans) > 0:
             img = np.nan_to_num(img, nan=0.0)
         
-        ## DEBUG MASKING
+        ###### DEBUG MASKING
         # if np.count_nonzero(nans) > 0:
         #     # print(nans.shape, np.count_nonzero(nans))
 
