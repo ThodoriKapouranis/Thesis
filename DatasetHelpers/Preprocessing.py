@@ -19,8 +19,6 @@ import rasterio
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from Dataset import create_dataset
 import cv2 as cv
-from scipy.ndimage.filters import uniform_filter
-from scipy.ndimage.measurements import variance
 
 def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
     """Applies lee filter to image
@@ -86,33 +84,49 @@ def _test():
     ds = create_dataset(FLAGS)
 
     # Generate a whole bunch of 
-    random_index = np.random.randint( low=0, high=ds.x_train.shape[0]-1, size=(10) )
+    random_index = np.random.randint( low=0, high=ds.x_train.shape[0]-1, size=(30) )
 
     for i in random_index:
         original_co_path = ds.x_train[i, 0]
 
         with rasterio.open(original_co_path) as src:
             original = src.read()
+
+            nans = np.isnan(original[:,:,:]).any(axis=0) 
+
+            img = original
+            ## ## NAN IMPUTATION for input
+            # Is zero a good imputation value?
+            if np.count_nonzero(nans) > 0:
+                img = np.nan_to_num(original, nan=0.0)
+
             
             # Apply pipeline
-            filtered = lee_filter(original, size=7)
+            filtered = lee_filter(img, size=9)
 
             fig, axes = plt.subplots(1, 2)
+
+            # original = cv.normalize(original, None, alpha=0, beta=255, norm_type = cv.NORM_MINMAX)
+            # filtered = cv.normalize(filtered, None, alpha=0, beta=255, norm_type = cv.NORM_MINMAX)
 
             # original = np.append(original, np.expand_dims(original[0]/original[1], 0), 0)
             # filtered = np.append(filtered, np.expand_dims(filtered[0]/filtered[1], 0), 0)
             
-            # original = cv.normalize(original, None, alpha=0, beta=255, norm_type = cv.NORM_MINMAX)
-            # filtered = cv.normalize(filtered, None, alpha=0, beta=255, norm_type = cv.NORM_MINMAX)
-
             # Transpose to get into HWC format
+
             original = np.transpose(original, (1,2,0))
             filtered = np.transpose(filtered, (1,2,0))
 
-            axes[0].imshow(original[:,:,0])
-            axes[1].imshow(filtered[:,:,0])
+
+            ax0 = original[:,:,0]
+            ax1 = filtered[:,:,0]
+
+            axes[0].imshow(ax0)
+            axes[1].imshow(ax1)
 
             fig.savefig(f'DatasetHelpers/pipeline-debugging/{original_co_path.split("/")[-1][0:-3]}')
+
+            plt.close()
 
 
 def main(x):
