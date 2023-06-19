@@ -19,8 +19,10 @@ import rasterio
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from Dataset import create_dataset
 import cv2 as cv
+from scipy.ndimage.filters import uniform_filter
+from scipy.ndimage.measurements import variance
 
-def lee_filter(image:np.ndarray, N:int = 7) -> np.ndarray:
+def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
     """Applies lee filter to image
 
     https://www.imageeprocessing.com/2014/08/lee-filter.html
@@ -28,24 +30,36 @@ def lee_filter(image:np.ndarray, N:int = 7) -> np.ndarray:
 
     Args:
         image (np.array): Unfiltered image. Example size: (2,512,512)
-        N (int, optional): Kernel size (N by N). Should be odd in order to have a 'center'. Defaults to 7.
-
+        size (int, optional): Kernel size (N by N). Should be odd in order to have a 'center'. Defaults to 7.
+    
     Returns:
         np.ndarray: Filtered image
     """
 
-    avg_kernel = np.ones((N, N), np.float32) / (N**2)
+    avg_kernel = np.ones((size, size), np.float32) / (size**2)
     
     patch_means = cv.filter2D(image, -1, avg_kernel)
     patch_means_sqr = cv.filter2D(image**2, -1, avg_kernel)
     patch_var = patch_means_sqr - patch_means**2
 
     img_var = np.mean(image**2) - np.mean(image)**2
-    patch_weights = img_var**2  / (img_var**2 + patch_var)
+    patch_weights = patch_var / (patch_var + img_var)
 
     filtered = patch_means + patch_weights * (image - patch_means)
 
     return filtered
+
+# def lee_filter(img, size:int=7):
+#     img_mean = uniform_filter(img, (size, size))
+#     img_sqr_mean = uniform_filter(img**2, (size, size))
+#     img_variance = img_sqr_mean - img_mean**2
+
+#     overall_variance = variance(img)
+
+#     img_weights = img_variance / (img_variance + overall_variance)
+#     img_output = img_mean + img_weights * (img - img_mean)
+#     return img_output
+
 
 def debug_mean_filter(image:np.ndarray, N:int=10) -> np.ndarray:
     avg_kernel = np.ones( shape=(N,N), dtype=np.float32) / (N**2)
@@ -70,32 +84,35 @@ def _test():
     flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
 
     ds = create_dataset(FLAGS)
-    random_index = np.random.randint( low=0, high=ds.x_train.shape[0]-1 )
 
-    original_co_path = ds.x_train[random_index, 0]
+    # Generate a whole bunch of 
+    random_index = np.random.randint( low=0, high=ds.x_train.shape[0]-1, size=(10) )
 
-    with rasterio.open(original_co_path) as src:
-        original = src.read()
-        
-        # Apply pipeline
-        filtered = debug_mean_filter(original, N=3)
+    for i in random_index:
+        original_co_path = ds.x_train[i, 0]
 
-        fig, axes = plt.subplots(1, 2)
+        with rasterio.open(original_co_path) as src:
+            original = src.read()
+            
+            # Apply pipeline
+            filtered = lee_filter(original, size=7)
 
-        # original = np.append(original, np.expand_dims(original[0]/original[1], 0), 0)
-        # filtered = np.append(filtered, np.expand_dims(filtered[0]/filtered[1], 0), 0)
-        
-        # original = cv.normalize(original, None, alpha=0, beta=255, norm_type = cv.NORM_MINMAX)
-        # filtered = cv.normalize(filtered, None, alpha=0, beta=255, norm_type = cv.NORM_MINMAX)
+            fig, axes = plt.subplots(1, 2)
 
-        # Transpose to get into HWC format
-        original = np.transpose(original, (1,2,0))
-        filtered = np.transpose(filtered, (1,2,0))
+            # original = np.append(original, np.expand_dims(original[0]/original[1], 0), 0)
+            # filtered = np.append(filtered, np.expand_dims(filtered[0]/filtered[1], 0), 0)
+            
+            # original = cv.normalize(original, None, alpha=0, beta=255, norm_type = cv.NORM_MINMAX)
+            # filtered = cv.normalize(filtered, None, alpha=0, beta=255, norm_type = cv.NORM_MINMAX)
 
-        axes[0].imshow(original[:,:,0])
-        axes[1].imshow(filtered[:,:,0])
+            # Transpose to get into HWC format
+            original = np.transpose(original, (1,2,0))
+            filtered = np.transpose(filtered, (1,2,0))
 
-        fig.savefig(f'DatasetHelpers/pipeline-debugging/{original_co_path.split("/")[-1][0:-3]}')
+            axes[0].imshow(original[:,:,0])
+            axes[1].imshow(filtered[:,:,0])
+
+            fig.savefig(f'DatasetHelpers/pipeline-debugging/{original_co_path.split("/")[-1][0:-3]}')
 
 
 def main(x):

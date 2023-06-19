@@ -116,7 +116,7 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
     '''
     
     def apply_transpose(x:np.float32):
-        # Assume x is read directly from rasterio, which should be 
+        # Assume x is read directly from rasterio.open. Which means it would be in CHW format
         if format == "CHW":
             return x 
         elif format == "HWC":
@@ -132,7 +132,9 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
         tgt = list()
 
         for train_path in path[0:-1]:
+            # Train paths include all images paths relating to this scene
             train_path = train_path.decode('utf-8')
+            
             with rasterio.open(train_path) as src:
                 tmp_img = src.read()
                 
@@ -145,9 +147,7 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
                 else:
                     tmp_img = np.expand_dims(tmp_img, axis=0)
                     img = np.append(img, tmp_img, axis=1) # --> (1, 2+, 512, 512)
-    
-        # Apply appropriate transpose to get into correct format
-        img = apply_transpose(img) 
+
 
         tgt_path = path[-1].decode('utf-8')
         with rasterio.open(tgt_path) as src:
@@ -163,24 +163,30 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
         # fig1.savefig(f"Results/Debug/{tgt_path.split('/')[-1][:-3]}_training.png")
         
         ## PREPROCESSING PIPLINE
-        
+
+        ##  ## MASKING
+        # Get along channels
+        nans = np.isnan(img[0,:,:,:]).any(axis=0) 
+
+        ## ## NAN IMPUTATION for input
+        # Is zero a good imputation value?
+        if np.count_nonzero(nans) > 0:
+            img = np.nan_to_num(img, nan=0.0)
+
         ##  ## BORDER NOISE CORRECTION
 
         ##  ## SPECKLE FILTER
 
         ##  ## RADIOMETRIC TERRAIN NORMALIZATION
 
-        ##  ## MASKING
-        if format == "HWC":
-            nans = np.isnan(img[0,:,:,:]).any(axis=-1)
-        elif format == "CHW":
-            nans = np.isnan(img[0,:,:,:]).any(axis=0)
-
         tgt_masked = np.ma.masked_array(tgt, mask=nans)
         
-        #### NAN IMPUTATION for input
-        if np.count_nonzero(nans) > 0:
-            img = np.nan_to_num(img, nan=0.0)
+
+        # Apply appropriate transpose to get into correct final training format
+        # Everything initially is BCWH
+        img = apply_transpose(img) 
+
+
         
         ###### DEBUG MASKING
         # if np.count_nonzero(nans) > 0:
