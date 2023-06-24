@@ -101,6 +101,24 @@ def main(x):
 
         if FLAGS.model == 'unet':
             train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC')
+            BATCH_SIZE = FLAGS.batch_size 
+            # Set up datasets (Set batch size or else everything will break)
+            train_ds = (
+                train_ds
+                .cache()
+                .shuffle(BATCH_SIZE * 10)
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+            val_ds = (
+                val_ds
+                .cache()
+                .shuffle(BATCH_SIZE * 10)
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+
+
             model = UNetCompiled(input_size=(512, 512, channel_size), n_filters=64, n_classes=2)
             print(model.summary())
             
