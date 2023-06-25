@@ -125,6 +125,7 @@ def main(x):
             model.compile(
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                 optimizer=opt,
+                weighted_metrics=[],
                 metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
 
