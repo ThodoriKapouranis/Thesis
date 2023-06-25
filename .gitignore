@@ -11,3 +11,5 @@ Results/Debug
 tatus
 UNTRACKED/todo.md
 podman-commands
+*.pyc
+*.v2
