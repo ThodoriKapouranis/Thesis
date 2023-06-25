@@ -9,12 +9,41 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import rasterio
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import cv2 as cv
 
 label_remapping = {
     -1: 0,
     0: 0,
     1: 1,
 }
+
+#! TODO: DELETE THIS AND IMPORT FROM FILE
+def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
+    """Applies lee filter to image
+
+    https://www.imageeprocessing.com/2014/08/lee-filter.html
+    https://www.kaggle.com/code/samuelsujith/lee-filter
+
+    Args:
+        image (np.array): Unfiltered image. Example size: (2,512,512)
+        size (int, optional): Kernel size (N by N). Should be odd in order to have a 'center'. Defaults to 7.
+    
+    Returns:
+        np.ndarray: Filtered image
+    """
+
+    avg_kernel = np.ones((size, size), np.float32) / (size**2)
+    
+    patch_means = cv.filter2D(image, -1, avg_kernel)
+    patch_means_sqr = cv.filter2D(image**2, -1, avg_kernel)
+    patch_var = patch_means_sqr - patch_means**2
+
+    img_var = np.mean(image**2) - np.mean(image)**2
+    patch_weights = patch_var / (patch_var + img_var + 1e-6)
+
+    filtered = patch_means + patch_weights * (image - patch_means)
+
+    return filtered
 
 @dataclass
 class Dataset:
@@ -106,7 +135,6 @@ def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC') -> Tuple[tf.
 
     return train_ds, val_ds, test_ds, hand_ds
 
-
 def construct_read_sample_function(channel_size:int, format:str = "HWC"):
     '''
     This function takes in options to adjust the dataset reading functions to accomodate different datasets.
@@ -176,6 +204,12 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
         ##  ## BORDER NOISE CORRECTION
 
         ##  ## SPECKLE FILTER
+        if img.shape[1] == 2:
+            img[0, :, :, :] = lee_filter(img[0, :, :, :])
+        
+        if img.shape[1] > 2:
+            img[0, 0:4, :, :] = lee_filter(img[0, 0:4, :, :])
+
 
         ##  ## RADIOMETRIC TERRAIN NORMALIZATION
 
