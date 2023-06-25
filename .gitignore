@@ -13,3 +13,4 @@ UNTRACKED/todo.md
 podman-commands
 *.pyc
 *.v2
+*.pyc
