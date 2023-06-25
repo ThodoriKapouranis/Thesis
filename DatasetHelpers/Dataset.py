@@ -204,11 +204,11 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
         ##  ## BORDER NOISE CORRECTION
 
         ##  ## SPECKLE FILTER
-        if img.shape[1] == 2:
-            img[0, :, :, :] = lee_filter(img[0, :, :, :])
+        # if img.shape[1] == 2:
+        #     img[0, :, :, :] = lee_filter(img[0, :, :, :])
         
-        if img.shape[1] > 2:
-            img[0, 0:4, :, :] = lee_filter(img[0, 0:4, :, :])
+        # if img.shape[1] > 2:
+        #     img[0, 0:4, :, :] = lee_filter(img[0, 0:4, :, :])
 
 
         ##  ## RADIOMETRIC TERRAIN NORMALIZATION

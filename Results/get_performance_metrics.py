@@ -77,7 +77,6 @@ def main(x):
     hand_set = hand_set.batch(1)
     holdout_set = holdout_set.batch(1)
     
-
     @tf.function
     def calculate_metrics(img: tf.Tensor, tgt: tf.Tensor, wgt: tf.Tensor):
         print('...')
@@ -89,6 +88,7 @@ def main(x):
             pred = tf.transpose(pred, perm=[1,2,0]) # Convert to HWC
             tgt = tf.transpose(tgt, perm=[1,2,0]) # Convert to HWC
             pred = tf.image.resize(pred, size=(512,512))
+        
         else:
             logits = model(img)
             pred = tf.argmax(logits, axis=3) # BHWC
@@ -133,6 +133,7 @@ def main(x):
                 mask = pred_0
             )
         )
+
         return TP, FP, TN , FN
     
     metrics = hand_set.map( lambda x, y, z: tf.numpy_function(func=calculate_metrics, inp=[x, y, z], Tout=(tf.int64, tf.int64, tf.int64, tf.int64)) )
