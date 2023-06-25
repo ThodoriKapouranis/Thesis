@@ -90,12 +90,12 @@ def main(x):
         f.set_figwidth(5)
         f.set_figheight(5)
 
-        ax[0].imshow(tgt, cmap=correct_cmap, interpolation='none')
+        ax[0].imshow(tgt[0], cmap=correct_cmap, interpolation='none')
         
         # Layer prediction image
-        ax[1].imshow(pred, cmap=correct_cmap, interpolation='none')
-        ax[1].imshow(np.ma.masked_array(tgt, FN_mask), cmap=missing_cmap, interpolation='none') # <--- Ground truth as gray, to show missed spots
-        ax[1].imshow(FP_mask, cmap=wrong_cmap, interpolation='none')
+        ax[1].imshow(pred[0], cmap=correct_cmap, interpolation='none')
+        ax[1].imshow(np.ma.masked_array(tgt[0], FN_mask[0]), cmap=missing_cmap, interpolation='none') # <--- Ground truth as gray, to show missed spots
+        ax[1].imshow(FP_mask[0], cmap=wrong_cmap, interpolation='none')
 
         f.savefig(f"Results/Sample images/{model_name}/{i}")
 
