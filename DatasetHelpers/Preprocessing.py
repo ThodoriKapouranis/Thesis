@@ -24,7 +24,7 @@ from Dataset import create_dataset
 import cv2 as cv
 
 def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
-    """Applies lee filter to image
+    """Applies lee filter to image. It is applied per channel.
 
     https://www.imageeprocessing.com/2014/08/lee-filter.html
     https://www.kaggle.com/code/samuelsujith/lee-filter
@@ -36,17 +36,21 @@ def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
     Returns:
         np.ndarray: Filtered image
     """
-
-    avg_kernel = np.ones((size, size), np.float32) / (size**2)
+    EPSILON = 1e-9
+    filtered = np.zeros(image.shape)
     
-    patch_means = cv.filter2D(image, -1, avg_kernel)
-    patch_means_sqr = cv.filter2D(image**2, -1, avg_kernel)
-    patch_var = patch_means_sqr - patch_means**2
+    # Apply filter to each channel wise
+    for c in range(image.shape[0]):
 
-    img_var = np.mean(image**2) - np.mean(image)**2
-    patch_weights = patch_var / (patch_var + img_var)
+        avg_kernel = np.ones((size, size), np.float32) / (size**2)
+        
+        patch_means = cv.filter2D(image[c], -1, avg_kernel)
+        patch_means_sqr = cv.filter2D(image[c]**2, -1, avg_kernel)
+        patch_var = patch_means_sqr - patch_means**2
 
-    filtered = patch_means + patch_weights * (image - patch_means)
+        img_var = np.mean(image[c]**2) - np.mean(image[c])**2
+        patch_weights = patch_var / (patch_var + img_var + EPSILON)
+        filtered[c] = patch_means + patch_weights * (image[c] - patch_means)
 
     return filtered
 
@@ -62,8 +66,8 @@ def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
 #     return img_output
 
 
-def debug_mean_filter(image:np.ndarray, N:int=10) -> np.ndarray:
-    avg_kernel = np.ones( shape=(N,N), dtype=np.float32) / (N**2)
+def debug_mean_filter(image:np.ndarray, size:int=10) -> np.ndarray:
+    avg_kernel = np.ones( shape=(size,size), dtype=np.float32) / (size**2)
     return cv.filter2D(image, -1, avg_kernel)
 
 def _test():
@@ -138,9 +142,10 @@ def _test():
     lee_test[2, 20:30, 20:30] += 1
     lee_test[3, 30:40, 30:40] += 1
     lee_test[4, 40:50, 40:50] += 1
-    lee_test[5, 50:60, 50:] += 1
+    lee_test[5, 50:60, 50:60] += 1
 
-    filtered = lee_filter(lee_test, size=9)
+    filtered = lee_filter(lee_test, size=7)
+    
     fig, axes = plt.subplots(2, 6, figsize=(15,5))
 
     for i in range(6):
