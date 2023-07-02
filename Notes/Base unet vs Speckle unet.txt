@@ -5,10 +5,10 @@ Total params: 34,557,698
 Trainable params: 34,553,730
 Non-trainable params: 3,968
 
-Water IoU:               39.908
-Water Precision:        82.421
-Water Recall:            43.621
-Water F1:                57.049
+Water IoU:               39.348
+Water Precision:        84.715
+Water Recall:            42.355
+Water F1:                56.474
 
 
 
@@ -29,7 +29,28 @@ Scenario 2
 ========================================
 
 Base unet  64
-Water IoU:               34.979
-Water Precision:        82.209
-Water Recall:            37.844
-Water F1:                51.829
+Water IoU:               31.353
+Water Precision:        81.787
+Water Recall:            33.707
+Water F1:                47.739
+
+Unet-64 w/ Speckle
+Water IoU:               56.119
+Water Precision:        70.572
+Water Recall:            73.264
+Water F1:                71.893
+
+
+Scenario 3 
+=========================================
+Base unet 64
+Water IoU:               46.881
+Water Precision:        83.865
+Water Recall:            51.529
+Water F1:                63.836
+
+Unet-64 w/ Speckle
+Water IoU:               57.144
+Water Precision:        65.614
+Water Recall:            81.573
+Water F1:                72.729
