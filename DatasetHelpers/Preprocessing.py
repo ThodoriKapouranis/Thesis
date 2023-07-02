@@ -12,7 +12,10 @@ from dataclasses import dataclass, field
 import os
 from typing import Tuple
 from absl import app, flags
+
 from matplotlib import pyplot as plt
+from matplotlib import gridspec
+
 import numpy as np
 from sklearn.model_selection import train_test_split
 import rasterio
@@ -61,8 +64,8 @@ def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
 
 def debug_mean_filter(image:np.ndarray, N:int=10) -> np.ndarray:
     avg_kernel = np.ones( shape=(N,N), dtype=np.float32) / (N**2)
-
     return cv.filter2D(image, -1, avg_kernel)
+
 def _test():
     FLAGS = flags.FLAGS
     flags.DEFINE_bool("debug", False, "Set logging level to debug")
@@ -83,7 +86,7 @@ def _test():
 
     ds = create_dataset(FLAGS)
 
-    # Generate a whole bunch of 
+    # Generate a whole bunch of lee filtered images
     random_index = np.random.randint( low=0, high=ds.x_train.shape[0]-1, size=(30) )
 
     for i in random_index:
@@ -124,9 +127,32 @@ def _test():
             axes[0].imshow(ax0)
             axes[1].imshow(ax1)
 
-            fig.savefig(f'DatasetHelpers/pipeline-debugging/{original_co_path.split("/")[-1][0:-3]}')
+            fig.savefig(f'DatasetHelpers/pipeline-debugging/samples/lee-filter/{original_co_path.split("/")[-1][0:-3]}')
 
             plt.close()
+
+    # Test Lee Filter functionality per-channel
+    lee_test = np.zeros(shape=(6,60,60))
+    lee_test[0, 0:10, 0:10] += 1
+    lee_test[1, 10:20, 10:20] += 1
+    lee_test[2, 20:30, 20:30] += 1
+    lee_test[3, 30:40, 30:40] += 1
+    lee_test[4, 40:50, 40:50] += 1
+    lee_test[5, 50:60, 50:] += 1
+
+    filtered = lee_filter(lee_test, size=9)
+    fig, axes = plt.subplots(2, 6, figsize=(15,5))
+
+    for i in range(6):
+        axes[0,i].imshow(lee_test[i, :, :], interpolation='none')
+        axes[1,i].imshow(filtered[i, :, :], interpolation='none')
+    
+    
+
+    fig.savefig(f'DatasetHelpers/pipeline-debugging/filters-function/lee-test')
+    plt.close()
+    
+
 
 
 def main(x):
