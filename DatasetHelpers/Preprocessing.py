@@ -20,7 +20,6 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import rasterio
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from Dataset import create_dataset
 import cv2 as cv
 
 def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
@@ -71,6 +70,7 @@ def debug_mean_filter(image:np.ndarray, size:int=10) -> np.ndarray:
     return cv.filter2D(image, -1, avg_kernel)
 
 def _test():
+    from Dataset import create_dataset
     FLAGS = flags.FLAGS
     flags.DEFINE_bool("debug", False, "Set logging level to debug")
     flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
