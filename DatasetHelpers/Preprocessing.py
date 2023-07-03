@@ -124,9 +124,23 @@ def _test():
             original = np.transpose(original, (1,2,0))
             filtered = np.transpose(filtered, (1,2,0))
 
+            # Transpose to get into HWC format. Psuedo color
+            ax0 = np.transpose( np.array((original[:,:,0], original[:,:,1], original[:,:,0]/original[:,:,1])), (1,2,0))
+            ax1 = np.transpose( np.array((filtered[:,:,0], filtered[:,:,1], filtered[:,:,0]/filtered[:,:,1])), (1,2,0))
 
-            ax0 = original[:,:,0]
-            ax1 = filtered[:,:,0]
+            def normalize_channels(img):
+                # Takes in HWC format
+                # Scales image to 0...1
+                for c in range(img.shape[2]):
+                    diff_off_min = (img[:,:,c]-np.min(img[:,:,c]))
+                    channel_range = (np.max(img[:,:,c])-np.min(img[:,:,c])) + 1e-3
+
+                    img[:,:,c] = diff_off_min / channel_range
+                
+                return img
+            
+            ax0 = normalize_channels(ax0)
+            ax1 = normalize_channels(ax1)
 
             axes[0].imshow(ax0)
             axes[1].imshow(ax1)
