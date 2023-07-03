@@ -105,15 +105,12 @@ def main(x):
             # Set up datasets (Set batch size or else everything will break)
             train_ds = (
                 train_ds
-                .cache()
-                .shuffle(BATCH_SIZE * 10)
                 .batch(BATCH_SIZE)
                 .prefetch(tf.data.AUTOTUNE)
             )
+
             val_ds = (
                 val_ds
-                .cache()
-                .shuffle(BATCH_SIZE * 10)
                 .batch(BATCH_SIZE)
                 .prefetch(tf.data.AUTOTUNE)
             )
@@ -214,8 +211,10 @@ def main(x):
         
         CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174}  # Empirical 
         results = model.fit(train_ds, epochs=FLAGS.epochs, validation_data=val_ds, validation_steps=32)
+        
         if FLAGS.model == "segformer":
             model.save_pretrained(f"Results/Models/{FLAGS.savename}")
+            
         else:
             model.save(f"Results/Models/{FLAGS.savename}")
 
