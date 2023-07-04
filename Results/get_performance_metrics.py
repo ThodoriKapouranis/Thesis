@@ -25,6 +25,9 @@ flags.DEFINE_string('hand_coh_pre', '/workspaces/Thesis/10m_hand/coherence_10m/h
 flags.DEFINE_string('hand_s1_co', '/workspaces/Thesis/10m_hand/HandLabeled/S1Hand', '(h) filepath of Sentinel-1 coevent data')
 flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD_Hand_Labeled', '(h) filepath of Sentinel-1 prevent data')
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
+
+flags.DEFINE_bool("baseline", False, "T/F for baseline. If true, it does not apply the new processing pipeline")
+
 '''
 THIS FILE IS INTENDED TO RUN A PRETRAINED MODEL THROUGH TESTING.
 
@@ -73,7 +76,7 @@ def main(x):
 
     ds_format = "CHW" if architecture == "segformer" else "HWC"
 
-    _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, ds_format)
+    _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, ds_format, baseline=FLAGS.baseline)
     hand_set = hand_set.batch(1)
     holdout_set = holdout_set.batch(1)
     
