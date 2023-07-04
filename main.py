@@ -44,6 +44,7 @@ flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/Labe
 
 # Model specific flags
 flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet', 'segformer'")
+flags.DEFINE_bool("baseline", False, "T/F for baseline. If true, it does not apply the new processing pipeline")
 
 # XGB boost specific parameters
 flags.DEFINE_integer('xgb_batches', 4, 'batches to use for splitting xgboost training to fit in memory')
@@ -100,7 +101,7 @@ def main(x):
         )
 
         if FLAGS.model == 'unet':
-            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC')
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC', baseline=FLAGS.baseline)
             BATCH_SIZE = FLAGS.batch_size 
             # Set up datasets (Set batch size or else everything will break)
             train_ds = (

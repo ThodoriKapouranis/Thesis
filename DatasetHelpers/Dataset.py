@@ -69,7 +69,7 @@ class Dataset:
 
         return self.batches        
 
-def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC') -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC', baseline=False) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     '''
     Returns the created datasets as multiple tf.data.Dataset classes.
     Returns:
@@ -84,7 +84,7 @@ def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC') -> Tuple[tf.
     test_samples = []
     hand_samples = []
     
-    tf_read_sample = construct_read_sample_function(channel_size, format=format)
+    tf_read_sample = construct_read_sample_function(channel_size, format=format, baseline=baseline)
 
     for x, y in zip(ds.x_train, ds.y_train): train_samples.append((*x, *y))
     for x, y in zip(ds.x_val, ds.y_val): val_samples.append((*x, *y))
@@ -111,7 +111,7 @@ def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC') -> Tuple[tf.
 
     return train_ds, val_ds, test_ds, hand_ds
 
-def construct_read_sample_function(channel_size:int, format:str = "HWC"):
+def construct_read_sample_function(channel_size:int, format:str = "HWC", baseline=False):
     '''
     This function takes in options to adjust the dataset reading functions to accomodate different datasets.
     @parmams:
@@ -177,17 +177,18 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC"):
         if np.count_nonzero(nans) > 0:
             img = np.nan_to_num(img, nan=0.0)
 
-        ##  ## BORDER NOISE CORRECTION
+        if not baseline:
+            ##  ## BORDER NOISE CORRECTION
 
-        ##  ## SPECKLE FILTER
-        if img.shape[1] == 2:
-            img[0, :, :, :] = lee_filter(img[0, :, :, :])
-        
-        if img.shape[1] > 2:
-            img[0, 0:4, :, :] = lee_filter(img[0, 0:4, :, :])
+            ##  ## SPECKLE FILTER
+            if img.shape[1] == 2:
+                img[0, :, :, :] = lee_filter(img[0, :, :, :])
+            
+            if img.shape[1] > 2:
+                img[0, 0:4, :, :] = lee_filter(img[0, 0:4, :, :])
 
 
-        ##  ## RADIOMETRIC TERRAIN NORMALIZATION
+            ##  ## RADIOMETRIC TERRAIN NORMALIZATION
 
         tgt_masked = np.ma.masked_array(tgt, mask=nans)
         
