@@ -114,6 +114,10 @@ def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC', baseline=Fal
 def construct_read_sample_function(channel_size:int, format:str = "HWC", baseline=False):
     '''
     This function takes in options to adjust the dataset reading functions to accomodate different datasets.
+
+    This is because the read_sample, etc, functions need to have an exactly specific argument list to work.
+    We wrap the definitions of this function with another function to modify their behavior.
+    
     @parmams:
         - channel_size = Channel size of the dataset (3 for rgb)
         - format : image dimension order. "HWC" or "CHW"
