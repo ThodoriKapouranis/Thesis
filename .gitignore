@@ -7,3 +7,6 @@ Results/Models
 Results/Sample images
 Results/Debug
 *.pyc
+*.png
+Models/transformers
+*.v2

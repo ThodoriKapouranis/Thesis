@@ -27,9 +27,6 @@ class Batched_XGBoost:
             
             batch_model = xgb.XGBClassifier(use_label_encoder=False, tree_method='gpu_hist')
             batch_model.verbosity = 3
-            batch_model.max_depth = 6
-            batch_model.learning_rate = 0.3
-            batch_model.n_estimators = 1
             
             t1 = time.time()
             x, y = self.__load_data(batches[batch_idx])
@@ -44,38 +41,48 @@ class Batched_XGBoost:
         self.model =  full_model
 
     def __remap_labels(self, chip):
-        # Incoming label chip should be size (1, 512x512)
-        invalids = chip[0][:] == -1
-        chip[0][invalids] = 0
+        # Incoming label chip should be size (512x512, 1)
+        invalids = chip[:,0] == -1
+        chip[:,0][invalids] = 0
         return chip
     
     # Better solution is to use a map to read the file names and replace with the squeezed data?
     def __load_data(self, batch:dict):
         '''
         Takes a dictionary with keys {'x': [FILENAMES], 'y': [FILENAMES] } and loads the TIF filenames into an array.
+
+        param X_train : 2D- ndarray with shape ( num_pix , num_feat ) with input features
+        param Y_train : 2D- ndarray with shape ( num_pix ,) with labels
+
         '''
 
         channels = 2 # Do we keep channels??? Either way this needs to be a FLAG.scenario option
-        x = np.zeros(shape = (len(batch['x']), channels*512*512))
-        y =  np.zeros(shape = (len(batch['y']), 512*512))
+        x = np.zeros(shape = (1, channels))
+        y =  np.zeros( (1,1) )
 
         for idx, scenes in enumerate(batch['y']):
+            # same as scene = scenes[0] because there will never be more than one target image.
             for scene in scenes:
                 data = rasterio.open(scene, 'r').read()
                 channels, width, height = data.shape
-                data = np.reshape(data, (channels, width*height) )
+                data = np.reshape(data, (width*height, channels) )
+                data = np.int32(data)
                 data = self.__remap_labels(data)
-                y[idx,:] = data
-        
+                y = np.append(y, data, axis=0)
+            
         for idx, scenes in enumerate(batch['x']):
-            scenes = scenes[0]
+            
             for scene in scenes:
                 data = rasterio.open(scene, 'r').read() # C, W, H
                 channels, width, height = data.shape
-                data = data.flatten()
-                x[idx,:] = data
+                data = np.reshape(data, (channels, width*height))
+                data = np.transpose(data, (1,0))
+            
+                x = np.append(x, data, axis=0)
         
         print(x.shape, y.shape)
+
+
         return x, y
 
 def main(x):

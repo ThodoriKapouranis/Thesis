@@ -49,10 +49,16 @@ class Dataset:
         else: self.channels = None
     
     def generate_batches(self, batch_count:int) -> dict:
-        '''
-        Generates batches under the class attribute 'batches'
-        It is a dictionary of batch idx that map to dictioanies with a 'x' and 'y' key.
-        '''
+        """Writes batch information under the self.batches attribute of this class.
+
+        Batch information is stored as a dictionary that points to a list of data and label image paths under keys 'x' and 'y' 
+
+        Args:
+            batch_count (int): Number of batches to split training into
+
+        Returns:
+            dict: self.batches 
+        """
         self.batches = {}
         it = len(self.x_train)/batch_count  # 1000/4 = 250
         batch_idx = [int(i*it) for i in range(batch_count)] # [0, 250, 500, 750]

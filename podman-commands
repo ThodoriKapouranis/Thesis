@@ -1,0 +1,5 @@
+srun --nodes=1-1 --gres=gpu:titanrtx:1 --mem 1G --pty bash
+
+podman run -it --rm --shm-size=24G --mount=type=bind,source=/zooper2/kapour,destination=/workspaces/ localhost/thesis /bin/bash
+
+scp -P 31415 -r  kapour@kahanctrl.ee.cooper.edu:/zooper2/kapour/Thesis/Results/Models/segformer-b1-s1-e60/ .\Results\Models\
