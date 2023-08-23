@@ -1,9 +1,11 @@
 import time
 import numpy as np
 import rasterio
-import xgboost as xgb
+from xgboost import XGBClassifier
 from dataclasses import dataclass, field
 from absl import app, flags
+
+XGB_POS_WEIGHT = 6.7233518222
 
 @dataclass
 class Batched_XGBoost:
@@ -25,7 +27,7 @@ class Batched_XGBoost:
 
         for batch_idx in batches.keys():
             
-            batch_model = xgb.XGBClassifier(use_label_encoder=False, tree_method='gpu_hist')
+            batch_model = XGBClassifier(use_label_encoder=False, tree_method='gpu_hist', scale_pos_weight=XGB_POS_WEIGHT)
             batch_model.verbosity = 3
             
             t1 = time.time()
@@ -39,6 +41,30 @@ class Batched_XGBoost:
             full_model = batch_model
         
         self.model =  full_model
+
+    def predict_in_batches(self, batches:dict):
+        ...
+        predictions = []
+        truth = []
+        for batch_idx in batches.keys():
+            t1 = time.time()
+            x, y = self.__load_data(batches[batch_idx])
+            print( f'Batch {batch_idx} finished loading in {time.time() - t1} seconds')
+            
+            print("Starting batch prediction...")
+            t1 = time.time()
+            batch_pred = self.model.predict(x)
+
+            predictions.append(batch_pred)
+            truth.append(y)
+
+            print(f'Predictions: {len(predictions)}, Truth: {len(truth)}')
+        return predictions, truth
+
+    def load_model(self, path):
+        # TODO I dont think scale_pos_weight is necessary here because this model will not be used for training
+        self.model = XGBClassifier(use_label_encoder=False, tree_method='gpu_hist', scale_pos_weight=XGB_POS_WEIGHT)
+        self.model.load_model(path)
 
     def __remap_labels(self, chip):
         # Incoming label chip should be size (512x512, 1)
@@ -55,11 +81,21 @@ class Batched_XGBoost:
         param Y_train : 2D- ndarray with shape ( num_pix ,) with labels
 
         '''
+        channels = 2
 
-        channels = 2 # Do we keep channels??? Either way this needs to be a FLAG.scenario option
+        if batch['x'].shape[1] == 1:
+            channels = 2
+        elif batch['x'].shape[1] == 2:
+            channels = 4
+        elif batch['x'].shape[1] == 4:  
+            channels = 6
+
+        print(f"Expecting channel size: {channels}")
         x = np.zeros(shape = (1, channels))
         y =  np.zeros( (1,1) )
 
+        # Batch comes in as (samples, file_urls)
+        # So for S1, S2, S3 Respectively : (N,1), (N,2), (N,4)
         for idx, scenes in enumerate(batch['y']):
             # same as scene = scenes[0] because there will never be more than one target image.
             for scene in scenes:
@@ -69,19 +105,27 @@ class Batched_XGBoost:
                 data = np.int32(data)
                 data = self.__remap_labels(data)
                 y = np.append(y, data, axis=0)
-            
+        
+        print("Finished loading targets ...")
+
         for idx, scenes in enumerate(batch['x']):
+            # To be completed by compiling all the sample's scenes in this variable
+            full_data = np.zeros(shape=(512*512, 1)) 
             
             for scene in scenes:
                 data = rasterio.open(scene, 'r').read() # C, W, H
                 channels, width, height = data.shape
                 data = np.reshape(data, (channels, width*height))
-                data = np.transpose(data, (1,0))
+                data = np.transpose(data, (1,0))    
+                full_data = np.append(full_data, data, axis=1)
             
-                x = np.append(x, data, axis=0)
+            # Ditch first zero generated channel
+            full_data = full_data[:,1:]
+            x = np.append(x, full_data, axis=0)
         
-        print(x.shape, y.shape)
+        print("Finished loading data ...")
 
+        print(x.shape, y.shape)
 
         return x, y
 

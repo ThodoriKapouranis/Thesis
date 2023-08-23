@@ -192,7 +192,6 @@ def tf_read_sample_channelfix(channel_size:int):
     @tf.function
     def tf_read_sample(data_path:str) -> dict:
         [img, tgt, weight] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32, tf.float32])
-        # todo: These shapes need to be changed given scenario flags
         img.set_shape((1, 512, 512, channel_size))
         tgt.set_shape((1, 512, 512, 1))
         weight.set_shape((1, 512, 512, 1))

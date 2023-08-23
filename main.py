@@ -69,10 +69,14 @@ def main(x):
     
     # XGboost uses a different kind of dataloader than the Tensorflow models.
     if FLAGS.model == 'xgboost':
-        model = Batched_XGBoost()
+        xgb = Batched_XGBoost()
         dataset = create_dataset(FLAGS)
         batches = dataset.generate_batches(FLAGS.xgb_batches)
-        model.train_in_batches(batches)
+        xgb.train_in_batches(batches)
+
+        xgb.model.save_model(f"Results/Models/{FLAGS.savename}.json")
+
+        
     
     else:
         # Generic tensorflow NN hyperparameter and dataset creation
