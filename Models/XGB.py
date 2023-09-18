@@ -1,5 +1,6 @@
 from collections import defaultdict
 import time
+from matplotlib import pyplot as plt
 import numpy as np
 import rasterio
 from xgboost import XGBClassifier
@@ -73,7 +74,7 @@ class Batched_XGBoost:
         return chip
     
     # Better solution is to use a map to read the file names and replace with the squeezed data?
-    def __load_data(self, batch:dict, skip_missing_data=False):
+    def __load_data(self, batch:dict, skip_missing_data=False, debug=False):
         '''
         Takes a dictionary with keys {'x': [FILENAMES], 'y': [FILENAMES] } and loads the TIF filenames into an array.
 
@@ -99,14 +100,25 @@ class Batched_XGBoost:
         # Potential scenes: Co-event, Pre-event, Coherence
         # Need to make sure data is not NaN.
         for idx, scenes in enumerate(batch['x']):
-            print(scenes)
             # Initialize ready data shape
             full_data = np.zeros(shape=(512*512, 1)) 
             skip_scene = False
 
             # Iterate through scenes and add them to the full_data variable
+            if debug:
+                fig, ax = plt.subplots(2,2)
+                count = 0;
+                subplots = [ ax[0,0], ax[0,1], ax[1,0], ax[1,1] ]
+            
             for scene in scenes:
                 data = rasterio.open(scene, 'r').read() # C, W, H
+                
+                # Visualize plot
+                if debug:
+                    to_plot = data
+                    subplots[count].imshow(data[0,:,:])
+                    count+= 1
+
                 channels, width, height = data.shape
                 data = np.reshape(data, (channels, width*height))
                 data = np.transpose(data, (1,0))    
@@ -117,7 +129,10 @@ class Batched_XGBoost:
                         scenes_to_skip[idx] = 1
                         skip_scene = True # Variable to ensure we dont append to our final return object
                         break # Stop looking at any other scenes for this region acquisition
-
+            
+            if debug:
+                plt.savefig(f"/workspaces/Thesis/DatasetHelpers/pipeline-debugging/samples/xgb-load/{scenes[0].split('/')[-1].split('.')[0]}")
+                
             if not skip_scene:
                 # Ditch first zero generated channel
                 full_data = full_data[:,1:]

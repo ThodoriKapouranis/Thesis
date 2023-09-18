@@ -10,3 +10,5 @@ Results/Debug
 *.png
 Models/transformers
 *.v2
+podman-commands
+UNTRACKED/
