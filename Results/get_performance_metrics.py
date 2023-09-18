@@ -160,7 +160,6 @@ def main(x):
 
             pred = np.squeeze(pred).flatten()
             tgt = np.squeeze(tgt).flatten()
-            print(pred.shape, tgt.shape)
 
             tgt = tf.convert_to_tensor(tgt, dtype=tf.float32)
             pred = tf.convert_to_tensor(pred, dtype=tf.float32)
@@ -173,7 +172,6 @@ def main(x):
             return pred_1, pred_0, tgt_1, tgt_0
 
         def get_scores(pred_1, pred_0, tgt_1, tgt_0):
-            print('calculating nonzero - TP')
             TP = tf.math.count_nonzero( 
                 tf.boolean_mask(
                     tf.math.equal(pred_1, tgt_1),
@@ -181,7 +179,6 @@ def main(x):
                 )
             )
 
-            print('calculating nonzero - FP') # Prediction is 1 when target is 0
             FP = tf.math.count_nonzero( 
                 tf.boolean_mask(
                     tf.math.equal(pred_1, tgt_0),
@@ -189,7 +186,6 @@ def main(x):
                 )
             )
             
-            print('calculating nonzero - TN')
             TN = tf.math.count_nonzero( 
                 tf.boolean_mask(
                     tf.math.equal(pred_0, tgt_0),
@@ -197,7 +193,6 @@ def main(x):
                 )
             )
 
-            print('calculating nonzero - FN')
             FN = tf.math.count_nonzero( 
                 tf.boolean_mask(
                     tf.math.equal(pred_0, tgt_1),
@@ -210,7 +205,7 @@ def main(x):
         model.load_model(FLAGS.model_path)
         print("Succesfully loaded XGBoost model ...")
 
-        batches = dataset.generate_batches(FLAGS.xgb_batches)
+        batches = dataset.generate_batches(FLAGS.xgb_batches, which_ds="hand")
         print("Succesfully made batches ...")
 
         TP, FP, TN, FN = 0, 0, 0, 0

@@ -72,7 +72,7 @@ def main(x):
         xgb = Batched_XGBoost()
         dataset = create_dataset(FLAGS)
         batches = dataset.generate_batches(FLAGS.xgb_batches)
-        xgb.train_in_batches(batches)
+        xgb.train_in_batches(batches, skip_missing_data=False)
 
         xgb.model.save_model(f"Results/Models/{FLAGS.savename}.json")
 
