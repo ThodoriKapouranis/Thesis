@@ -7,3 +7,10 @@ Results/Models
 Results/Sample images
 Results/Debug
 *.pyc
+*.png
+tatus
+UNTRACKED/todo.md
+podman-commands
+*.pyc
+*.v2
+*.pyc

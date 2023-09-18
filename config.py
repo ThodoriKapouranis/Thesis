@@ -26,7 +26,7 @@ def validate_config(FLAGS:flags.FLAGS):
         raise ConfigError("scenario")
     channels = {1:2, 2:4, 3:6}[FLAGS.scenario]
 
-    if FLAGS.model not in ['xgboost', 'unet', 'transunet']:
+    if FLAGS.model not in ['xgboost', 'unet', 'transunet', 'segformer']:
         raise ConfigError("model", "Model either not supported or not defined")
     
     if FLAGS.savename == None:

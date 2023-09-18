@@ -7,6 +7,8 @@ from transunet import TransUNet
 import sys
 sys.path.append('../Thesis')
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
+from transformers import SegformerConfig, TFSegformerForSemanticSegmentation
+from transformers import TFAutoModelForSemanticSegmentation
 
 FLAGS = flags.FLAGS
 flags.DEFINE_bool("debug", False, "Set logging level to debug")
@@ -23,6 +25,9 @@ flags.DEFINE_string('hand_coh_pre', '/workspaces/Thesis/10m_hand/coherence_10m/h
 flags.DEFINE_string('hand_s1_co', '/workspaces/Thesis/10m_hand/HandLabeled/S1Hand', '(h) filepath of Sentinel-1 coevent data')
 flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD_Hand_Labeled', '(h) filepath of Sentinel-1 prevent data')
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
+
+flags.DEFINE_bool("baseline", False, "T/F for baseline. If true, it does not apply the new processing pipeline")
+
 '''
 THIS FILE IS INTENDED TO RUN A PRETRAINED MODEL THROUGH TESTING.
 
@@ -51,23 +56,47 @@ Recall = TP / (TP + FN)
 def main(x):
     # USING: Saving whole models so that the architecture does not need to be initialized.
     # IGNORE:  when restoring a model from weights-only, create a model with the same architecture as the original model and then set its weights.
-    model = tf.keras.models.load_model(FLAGS.model_path)
+    model = None
+    architecture = FLAGS.model_path.split('/')[-2].split('-')[0]
+    if architecture == "segformer":
+        model = TFAutoModelForSemanticSegmentation.from_pretrained(FLAGS.model_path)
+        model.trainable = False
+        print('*-- Set segformer untrainable')
+    else:
+        model = tf.keras.models.load_model(FLAGS.model_path)
+
     print(model.summary())
     dataset = create_dataset(FLAGS)
+    
     channels = 2
     if FLAGS.scenario == 2:
         channels = 4
     elif FLAGS.scenario == 3:
         channels = 6
 
-    _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels)
-    print(tf.executing_eagerly())
+    ds_format = "CHW" if architecture == "segformer" else "HWC"
+
+    _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, ds_format, baseline=FLAGS.baseline)
+    hand_set = hand_set.batch(1)
+    holdout_set = holdout_set.batch(1)
+    
+
     @tf.function
     def calculate_metrics(img: tf.Tensor, tgt: tf.Tensor, wgt: tf.Tensor):
         print('...')
         TP, FP, TN, FN = 0, 0, 0, 0
-        logits = model(img)
-        pred = tf.argmax(logits, axis=3)
+        
+        if architecture == "segformer":
+            logits = model(img).logits
+            pred = tf.argmax(logits, axis=1) # BCHW, outputs at factor of (1/4, 1/4)
+            pred = tf.transpose(pred, perm=[1,2,0]) # Convert to HWC
+            tgt = tf.transpose(tgt, perm=[1,2,0]) # Convert to HWC
+            pred = tf.image.resize(pred, size=(512,512))
+        else:
+            logits = model(img)
+            pred = tf.argmax(logits, axis=3) # BHWC
+        
+        # FLatten and convert to correct datatype
         pred = tf.reshape(pred, [-1])
         pred = tf.cast(pred, tf.float32)
         
@@ -79,7 +108,6 @@ def main(x):
         tgt_1 = tf.math.equal(tgt, tf.ones(shape = tgt.shape) )
         tgt_0 = tf.math.equal(tgt, tf.zeros(shape = tgt.shape) )
     
-        print('calculating nonzero - TP')
         TP = tf.math.count_nonzero( 
             tf.boolean_mask(
                 tf.math.equal(pred_1, tgt_1),
@@ -87,7 +115,7 @@ def main(x):
             )
         )
 
-        print('calculating nonzero - FP') # Prediction is 1 when target is 0
+        # Prediction is 1 when target is 0
         FP = tf.math.count_nonzero( 
             tf.boolean_mask(
                 tf.math.equal(pred_1, tgt_0),
@@ -95,7 +123,6 @@ def main(x):
             )
         )
         
-        print('calculating nonzero - TN')
         TN = tf.math.count_nonzero( 
             tf.boolean_mask(
                 tf.math.equal(pred_0, tgt_0),
@@ -103,7 +130,6 @@ def main(x):
             )
         )
 
-        print('calculating nonzero - FN')
         FN = tf.math.count_nonzero( 
             tf.boolean_mask(
                 tf.math.equal(pred_0, tgt_1),
