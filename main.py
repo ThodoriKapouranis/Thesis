@@ -12,7 +12,6 @@ from DatasetHelpers.Dataset import convert_to_tfds, create_dataset
 
 from Models.XGB import Batched_XGBoost
 from Models.UNet import UNetCompiled
-from transunet import TransUNet
 script_path = os.path.dirname(os.path.realpath(__file__))
 
 font = {
