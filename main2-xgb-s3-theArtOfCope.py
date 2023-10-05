@@ -46,8 +46,8 @@ def main(x):
 
     
     # Do that training
-    def load_data(batch:dict):
-        x = np.zeros(shape = (1, 6))
+    def load_data(batch:dict, scenario:int):
+        x = np.zeros(shape = (1, scenario*2))
         y =  np.zeros((1,1))
 
         for idx, scenes in enumerate(batch['x']):
@@ -91,7 +91,7 @@ def main(x):
         model.verbosity = 0
 
         t1 = time.time()
-        x, y = load_data(dataset.batches[i])
+        x, y = load_data(dataset.batches[i], FLAGS.scenario)
         print( f'Batch {i} finished loading in {time.time() - t1} seconds')
         
         if full_model != None: # Continue training with new batch
