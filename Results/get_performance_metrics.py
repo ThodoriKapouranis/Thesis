@@ -13,7 +13,12 @@ from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
 FLAGS = flags.FLAGS
 flags.DEFINE_bool("debug", False, "Set logging level to debug")
 flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
+flags.DEFINE_string("ds", "hand", "hand or holdout dataset to use for evaluation")
 flags.DEFINE_string("model_path", "/workspaces/Thesis/Results/Models/unet_scenario1_64", "'xgboost', 'unet', 'a-unet")
+flags.DEFINE_string("model", "NN", " 'xgb' or 'NN' ")
+flags.DEFINE_integer('xgb_batches', 12, 'batches to use for splitting xgboost training to fit in memory')
+
+
 flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
 flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
 flags.DEFINE_string('s2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepath of S2-weak labelled data')
@@ -26,8 +31,7 @@ flags.DEFINE_string('hand_s1_co', '/workspaces/Thesis/10m_hand/HandLabeled/S1Han
 flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD_Hand_Labeled', '(h) filepath of Sentinel-1 prevent data')
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
 
-flags.DEFINE_string("model", "NN", " 'xgb' or 'NN' ")
-flags.DEFINE_integer('xgb_batches', 12, 'batches to use for splitting xgboost training to fit in memory')
+
 
 '''
 THIS FILE IS INTENDED TO RUN A PRETRAINED MODEL THROUGH TESTING.
@@ -68,7 +72,9 @@ def main(x):
         model = tf.keras.models.load_model(FLAGS.model_path)
         print(model.summary())
         _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels)
-        print(tf.executing_eagerly())
+
+        ds_to_use = holdout_set if FLAGS.ds=="holdout" else hand_set
+
         @tf.function
         def calculate_metrics(img: tf.Tensor, tgt: tf.Tensor, wgt: tf.Tensor):
             print('...')
@@ -119,7 +125,7 @@ def main(x):
             )
             return TP, FP, TN , FN
         
-        metrics = hand_set.map( lambda x, y, z: tf.numpy_function(func=calculate_metrics, inp=[x, y, z], Tout=(tf.int64, tf.int64, tf.int64, tf.int64)) )
+        metrics = ds_to_use.map( lambda x, y, z: tf.numpy_function(func=calculate_metrics, inp=[x, y, z], Tout=(tf.int64, tf.int64, tf.int64, tf.int64)) )
         metrics = np.array(list(metrics.as_numpy_iterator()))
         
         print(metrics.shape)
@@ -205,7 +211,7 @@ def main(x):
         model.load_model(FLAGS.model_path)
         print("Succesfully loaded XGBoost model ...")
 
-        batches = dataset.generate_batches(FLAGS.xgb_batches, which_ds="hand")
+        batches = dataset.generate_batches(FLAGS.xgb_batches, which_ds=FLAGS.ds)
         print("Succesfully made batches ...")
 
         TP, FP, TN, FN = 0, 0, 0, 0
