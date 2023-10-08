@@ -12,3 +12,5 @@ Models/transformers
 *.v2
 podman-commands
 UNTRACKED/
+podman-commands
+Report/.~lock.Model Data.ods\#
