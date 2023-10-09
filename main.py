@@ -39,12 +39,14 @@ flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
 
 # Model specific flags
-flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet")
+flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet', 'segformer'")
+flags.DEFINE_bool("baseline", False, "T/F for baseline. If true, it does not apply the new processing pipeline")
 
 # XGB boost specific parameters
 flags.DEFINE_integer('xgb_batches', 4, 'batches to use for splitting xgboost training to fit in memory')
 
 # NN training Hyperparameters
+flags.DEFINE_integer("batch_size", 1, "Batch size to use for training")
 flags.DEFINE_integer("epochs", 5, "Number of epochs to train model for")
 flags.DEFINE_float("lr", 1e-4, "Defines starting learning rate")
 flags.DEFINE_integer("embedding_size", 768, "Embedding (hidden) layer to use for transunet model")
@@ -72,7 +74,6 @@ def main(x):
         dataset = create_dataset(FLAGS)
         batches = dataset.generate_batches(FLAGS.xgb_batches)
         xgb.train_in_batches(batches, skip_missing_data=False)
-
         xgb.model.save_model(f"Results/Models/{FLAGS.savename}.json")
 
         
@@ -81,7 +82,6 @@ def main(x):
         # Generic tensorflow NN hyperparameter and dataset creation
         model=None
         dataset = create_dataset(FLAGS)
-        train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size)
         
         lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
             FLAGS.lr,
@@ -100,19 +100,40 @@ def main(x):
         )
 
         if FLAGS.model == 'unet':
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC', baseline=FLAGS.baseline)
+            BATCH_SIZE = FLAGS.batch_size 
+            # Set up datasets (Set batch size or else everything will break)
+            train_ds = (
+                train_ds
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+
+            val_ds = (
+                val_ds
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+
+
             model = UNetCompiled(input_size=(512, 512, channel_size), n_filters=64, n_classes=2)
             print(model.summary())
             
             model.compile(
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                 optimizer=opt,
+                weighted_metrics=[],
                 metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
 
         if FLAGS.model == "transunet":
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC')
+            for img, tgt, wgt in train_ds.take(1):
+                print(img.shape, tgt.shape, wgt.shape)
+
+
             grid_size = (512 // FLAGS.patch_size, 512 // FLAGS.patch_size )
             # Depending on our grid size our decoder structure will need to have more Conv2dRelu + upscaling layers to get back to the original 512x512 size.
-                
             decoder_channels = FLAGS.decoder_channels
 
             if decoder_channels == None:
@@ -146,8 +167,56 @@ def main(x):
                 metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
             )
 
+        if FLAGS.model == 'segformer':
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'CHW')
+            BATCH_SIZE = FLAGS.batch_size
+            
+            train_ds = (
+                train_ds
+                .cache()
+                .shuffle(BATCH_SIZE * 10)
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+            val_ds = (
+                val_ds
+                .cache()
+                .shuffle(BATCH_SIZE * 10)
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+
+            print(train_ds.element_spec)
+            for img, tgt, wgt in train_ds.take(1):
+                print(img.shape, tgt.shape, wgt.shape)
+
+            # Huggingface models require datasets to be in Channel first format.
+            segformer_config = SegformerConfig(
+                num_channels = channel_size,
+                # depths= [ 3,6,40,3 ], # MiT-b5,
+                # hidden_sizes = [64, 128, 320, 512], # MiT-b5
+                # decoder_hidden_size= 768 #MiT-b5
+            )
+            model = TFSegformerForSemanticSegmentation(segformer_config)
+            model.build( (BATCH_SIZE, channel_size, 512, 512) )
+
+
+            opt = tf.keras.optimizers.Adam(learning_rate=FLAGS.lr)
+            model.compile(
+                # loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
+                optimizer=opt,
+                weighted_metrics=[]
+                # metrics=[MeanIoU(num_classes=2, sparse_y_pred=False)]
+            )
+        
+        CLASS_W = {0: 0.6212519560516805, 1: 2.5618224079902174}  # Empirical 
         results = model.fit(train_ds, epochs=FLAGS.epochs, validation_data=val_ds, validation_steps=32)
-        model.save(f"Results/Models/{FLAGS.savename}")
+        
+        if FLAGS.model == "segformer":
+            model.save_pretrained(f"Results/Models/{FLAGS.savename}")
+            
+        else:
+            model.save(f"Results/Models/{FLAGS.savename}")
 
 if __name__ == "__main__":
     app.run(main)

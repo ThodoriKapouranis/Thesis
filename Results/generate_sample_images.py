@@ -9,6 +9,7 @@ from transunet import TransUNet
 import sys
 sys.path.append('../Thesis')
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
+from transformers import SegformerConfig, TFSegformerForSemanticSegmentation
 
 FLAGS = flags.FLAGS
 flags.DEFINE_bool("debug", False, "Set logging level to debug")
@@ -27,15 +28,23 @@ flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
 
 
-correct_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "skyblue"])
+correct_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "blue"])
 missing_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "lightgrey"])
-wrong_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "red"])
+wrong_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "magenta"])
+
 def main(x):
-    model = tf.keras.models.load_model(FLAGS.model_path)
-    model_name = FLAGS.model_path.split('/')[-1]
+    model = tf.keras.Model()
+    architecture = FLAGS.model_path.split('/')[-2].split('-')[0]
+    if architecture == "segformer":
+        model = TFSegformerForSemanticSegmentation.from_pretrained(FLAGS.model_path)
+    else:
+        model = tf.keras.models.load_model(FLAGS.model_path)
+
+    model_name= FLAGS.model_path.split('/')[-1]
     if model_name == '': # Look back one more slash
         model_name = FLAGS.model_path.split('/')[-2]
     
+    print(model.summary())
     try:
         os.mkdir(f"/workspaces/Thesis/Results/Sample images/{model_name}/")
     except:
@@ -48,30 +57,45 @@ def main(x):
         channels = 4
     elif FLAGS.scenario == 3:
         channels = 6
+    
+    ds_format = "CHW" if architecture == "segformer" else "HWC"
 
-    _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels)
+    _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, ds_format)
+    hand_set = hand_set.batch(1)
+    holdout_set = holdout_set.batch(1)
 
     for i, scene in enumerate( list(hand_set.take(5)) ):
         img, tgt, _ =  scene
+    
+        # Huggingface models have a wrapper around the output. Need to access the logits.
+        logits = None
+        pred = None
         
-        logits = model(img)
-        pred = tf.argmax(logits, axis=3)
-        tgt = tgt[0, :, :, 0] # Remove extra dim
-        pred = pred[0, :, :] # Remove extra dim
-        
+        print(architecture)
+        if architecture == "segformer":
+            logits = model.predict(img).logits
+            print(logits.shape)
+            pred = tf.argmax(logits, axis=1) # BCHW, outputs at factor of (1/4, 1/4)
+            pred = np.transpose(pred, axes=[1,2,0]) # Convert to HWC
+            tgt = np.transpose(tgt, axes=[1,2,0]) # Convert to HWC
+            pred = tf.image.resize(pred, size=(512,512))
+        else:
+            logits = model(img)
+            print(logits.shape)
+            pred = tf.argmax(logits, axis=3) # BHWC
+
         FN_mask = np.ma.masked_where(pred==1, pred)
         FP_mask = np.ma.masked_where(tgt==1, pred)
-
         f, ax = plt.subplots(1,2)
         f.set_figwidth(5)
         f.set_figheight(5)
 
-        ax[0].imshow(tgt, cmap=correct_cmap, interpolation='none')
+        ax[0].imshow(tgt[0], cmap=correct_cmap, interpolation='none')
         
         # Layer prediction image
-        ax[1].imshow(pred, cmap=correct_cmap, interpolation='none')
-        ax[1].imshow(np.ma.masked_array(tgt, FN_mask), cmap=missing_cmap, interpolation='none') # <--- Ground truth as gray, to show missed spots
-        ax[1].imshow(FP_mask, cmap=wrong_cmap, interpolation='none')
+        ax[1].imshow(pred[0], cmap=correct_cmap, interpolation='none')
+        ax[1].imshow(np.ma.masked_array(tgt[0], FN_mask[0]), cmap=missing_cmap, interpolation='none') # <--- Ground truth as gray, to show missed spots
+        ax[1].imshow(FP_mask[0], cmap=wrong_cmap, interpolation='none')
 
         f.savefig(f"Results/Sample images/{model_name}/{i}")
 

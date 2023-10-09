@@ -9,6 +9,8 @@ sys.path.append('../Thesis')
 from Models.XGB import Batched_XGBoost
 
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
+from transformers import SegformerConfig, TFSegformerForSemanticSegmentation
+from transformers import TFAutoModelForSemanticSegmentation
 
 FLAGS = flags.FLAGS
 flags.DEFINE_bool("debug", False, "Set logging level to debug")
@@ -31,7 +33,7 @@ flags.DEFINE_string('hand_s1_co', '/workspaces/Thesis/10m_hand/HandLabeled/S1Han
 flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD_Hand_Labeled', '(h) filepath of Sentinel-1 prevent data')
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
 
-
+flags.DEFINE_bool("baseline", False, "T/F for baseline. If true, it does not apply the new processing pipeline")
 
 '''
 THIS FILE IS INTENDED TO RUN A PRETRAINED MODEL THROUGH TESTING.
@@ -61,7 +63,9 @@ Recall = TP / (TP + FN)
 def main(x):
     # USING: Saving whole models so that the architecture does not need to be initialized.
     # IGNORE:  when restoring a model from weights-only, create a model with the same architecture as the original model and then set its weights.
+    model = None
     dataset = create_dataset(FLAGS)
+    
     channels = 2
     if FLAGS.scenario == 2:
         channels = 4
