@@ -9,8 +9,6 @@ sys.path.append('../Thesis')
 from Models.XGB import Batched_XGBoost
 
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
-from transformers import SegformerConfig, TFSegformerForSemanticSegmentation
-from transformers import TFAutoModelForSemanticSegmentation
 
 FLAGS = flags.FLAGS
 flags.DEFINE_bool("debug", False, "Set logging level to debug")
