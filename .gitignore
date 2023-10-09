@@ -15,3 +15,4 @@ UNTRACKED/
 podman-commands
 UNTRACKED/todo.md
 Report/.~lock.Model Data.ods\#
+DatasetHelpers/__pycache__/Dataset.cpython-38.pyc

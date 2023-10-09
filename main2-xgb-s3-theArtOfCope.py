@@ -3,7 +3,6 @@ Hardcode and rewriting parts of the XGB training pipeline for scenario 3
 Because I have no idea whats wrong and I just need this one piece to work to progress
 and im all out of ideas ha  - ha - ha -ha 
 """
-
 import time
 import numpy as np
 import matplotlib
@@ -11,6 +10,7 @@ import rasterio
 from xgboost import XGBClassifier
 from DatasetHelpers.Dataset import create_dataset
 from absl import app, flags
+from DatasetHelpers.Preprocessing import lee_filter
 
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -20,6 +20,8 @@ FLAGS = flags.FLAGS
 
 flags.DEFINE_bool("debug", False, "Set logging level to debug")
 flags.DEFINE_integer("scenario", 3, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
+flags.DEFINE_string("filter", None, "None / lee")
+
 flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
 flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
 flags.DEFINE_string('s2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepath of S2-weak labelled data')
@@ -34,7 +36,7 @@ flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/Labe
 flags.DEFINE_integer('batches', 4, 'Batches')
 
 #Define model metadata
-flags.DEFINE_string("savename", "xgb-s3-theArtOfCope-get_booster", "Name to use to save the model")
+flags.DEFINE_string("savename", "xgb-test", "Name to use to save the model")
 
 def main(x):
     batches = FLAGS.batches
@@ -43,10 +45,18 @@ def main(x):
     dataset.generate_batches(batches)
     sb = dataset.batches[0]
 
+    def identity(x):
+        return x 
+    
+    filter = identity
 
+    if FLAGS.filter == 'lee':
+        filter = lee_filter
+
+    print(filter)
     
     # Do that training
-    def load_data(batch:dict, scenario:int):
+    def load_data(batch:dict, scenario:int, filter:any):
         x = np.zeros(shape = (1, scenario*2))
         y =  np.zeros((1,1))
 
@@ -72,6 +82,7 @@ def main(x):
             # same as scene = scenes[0] because there will never be more than one target image.
             for scene in scenes:
                 data = rasterio.open(scene, 'r').read()
+                data = filter(data)
                 channels, width, height = data.shape
                 data = np.reshape(data, (width*height, channels) )
                 data = np.int32(data)
@@ -91,7 +102,8 @@ def main(x):
         model.verbosity = 0
 
         t1 = time.time()
-        x, y = load_data(dataset.batches[i], FLAGS.scenario)
+        x, y = load_data(dataset.batches[i], FLAGS.scenario, filter=filter)
+
         print( f'Batch {i} finished loading in {time.time() - t1} seconds')
         
         if full_model != None: # Continue training with new batch
