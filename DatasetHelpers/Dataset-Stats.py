@@ -21,6 +21,20 @@ def check_for_nan(state:dict, data):
     temp['y'] += y_nan
     return temp
 
+@tf.function
+def class_count(state:dict, data):
+    _, y, _ = data # ignore weights and x. We only care about labels
+    temp = state.copy() # Copy of the satte, will be the new state on function return.
+    
+    temp['count'] += 1 # state variable for scene count
+
+    water = tf.math.count_nonzero(y) # includes discrete labels [0,1]
+    non_water = tf.math.count_nonzero(y-1) # includes discrete labels [-1,0]
+
+    temp['0'] += non_water
+    temp['1'] += water
+    return temp
+
 def _test(x): 
     import sys
     sys.path.append('../Thesis')
@@ -31,20 +45,31 @@ def _test(x):
     flags.DEFINE_string("model", "xgboost", "'xgboost', 'unet', 'a-unet")
     flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
     flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
-    flags.DEFINE_string('hand_co', '/workspaces/Thesis/10m_data/coherence/hand_labeled/co_event', 'filepath of handlabelled coevent data')
-    flags.DEFINE_string('hand_pre', '/workspaces/Thesis/10m_data/coherence/hand_labeled/pre_event', 'filepath of handlabelled preevent data')
     flags.DEFINE_string('s2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepath of S2-weak labelled data')
     flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
     flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
 
+    flags.DEFINE_string('hand_coh_co', '/workspaces/Thesis/10m_hand/coherence_10m/hand_labeled/co_event', '(h) filepath of coevent data')
+    flags.DEFINE_string('hand_coh_pre', '/workspaces/Thesis/10m_hand/coherence_10m/hand_labeled/pre_event', '(h) filepath of preevent data')
+    flags.DEFINE_string('hand_s1_co', '/workspaces/Thesis/10m_hand/HandLabeled/S1Hand', '(h) filepath of Sentinel-1 coevent data')
+    flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD_Hand_Labeled', '(h) filepath of Sentinel-1 prevent data')
+    flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
+
     dataset = create_dataset(FLAGS)
     
-    dataset.x_train = dataset.x_train[0:100]
-    dataset.y_train = dataset.y_train[0:100]
-    
-    train_ds, test_ds, val_ds = convert_to_tfds(dataset)
-    nan_count = train_ds.reduce({'count':np.int64(0), 'x':np.int64(0), 'y':np.int64(0)}, check_for_nan)
-    print(nan_count)
+    train_ds, test_ds, val_ds, hand_ds = convert_to_tfds(dataset, channel_size=2)
+
+    ## Nan count for some reason i forgot why I did this
+    # nan_count = train_ds.reduce({'count':np.int64(0), 'x':np.int64(0), 'y':np.int64(0)}, check_for_nan)
+    # print(nan_count)
+
+    ## Class count
+    label_distribution = train_ds.reduce(
+        initial_state = {'count':np.int64(0), '0':np.int64(0), '1':np.int64(0)},
+        reduce_func = class_count
+    )
+
+    print(label_distribution)
 
 
 if __name__ == "__main__":

@@ -53,19 +53,36 @@ class Dataset:
         elif self.scenario == 2: self.channels = 6
         else: self.channels = None
     
-    def generate_batches(self, batch_count:int) -> dict:
-        '''
-        Generates batches under the class attribute 'batches'
-        It is a dictionary of batch idx that map to dictioanies with a 'x' and 'y' key.
-        '''
+    def generate_batches(self, batch_count:int, which_ds:str="train") -> dict:
+        """Writes batch information under the self.batches attribute of this class.
+
+        Batch information is stored as a dictionary that points to a list of data and label image paths under keys 'x' and 'y' 
+
+        Args:
+            batch_count (int): Number of batches to split training into
+            which_ds (str): Which dataset split to use. "train" "hand" "holdout"
+
+        Returns:
+            dict: self.batches 
+        """
         self.batches = {}
-        it = len(self.x_train)/batch_count  # 1000/4 = 250
+        ds_x = self.x_train
+        ds_y = self.y_train
+
+        if which_ds == "hand":
+            ds_x = self.x_hand
+            ds_y = self.y_hand
+        elif which_ds == "holdout":
+            ds_x = self.x_holdout
+            ds_y = self.y_holdout
+        
+        it = len(ds_x)/batch_count  # 1000/4 = 250
         batch_idx = [int(i*it) for i in range(batch_count)] # [0, 250, 500, 750]
-        batch_idx.append(len(self.x_train)) # [0, 250, 500, 750, 1000]
+        batch_idx.append(len(ds_x)) # [0, 250, 500, 750, 1000]
         for i in range(batch_count):
             self.batches[i] = {}
-            self.batches[i]['x'] = self.x_train[ batch_idx[i]:batch_idx[i+1] ]
-            self.batches[i]['y'] = self.y_train[ batch_idx[i]:batch_idx[i+1] ]
+            self.batches[i]['x'] = ds_x[ batch_idx[i]:batch_idx[i+1] ]
+            self.batches[i]['y'] = ds_y[ batch_idx[i]:batch_idx[i+1] ]
 
         return self.batches        
 

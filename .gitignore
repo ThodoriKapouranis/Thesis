@@ -8,9 +8,10 @@ Results/Sample images
 Results/Debug
 *.pyc
 *.png
-tatus
-UNTRACKED/todo.md
-podman-commands
-*.pyc
+Models/transformers
 *.v2
-*.pyc
+podman-commands
+UNTRACKED/
+podman-commands
+UNTRACKED/todo.md
+Report/.~lock.Model Data.ods\#

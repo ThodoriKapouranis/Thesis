@@ -1,0 +1,22 @@
+## Logging into server (kahanctrl)
+ssh kapour@kahanctrl.ee.cooper.edu -p 31415
+
+## Grabbing a terminal in kahan
+srun --nodes=1-1 --gres=gpu:titanrtx:1 --mem 1G --pty bash
+
+## Creating podman/docker image
+podman image build . --tag="thesis"
+podman image list 
+podman image rm {IMAGE NAME}
+
+## Running docker container 
+podman run -it --rm --shm-size=24G --mount=type=bind,source=/zooper2/kapour,destination=/workspaces/ localhost/thesis /bin/bash
+
+## Moving files from server to local
+scp -P 31415 -r  kapour@kahanctrl.ee.cooper.edu:/zooper2/kapour/Thesis/Results/Models/segformer-b1-s1-e60/ .\Results\Models\
+
+
+##### XGB TESTING 10/03/23
+"summer-sun"
+python main.py --model='xgboost' --scenario=3 --savename="xgb-summer-sun" --xgb_batches='4'
+python main2-xgb-s3-theArtOfCope.py  --scenario=2 --savename='summer-sun-s2' --batches=2
