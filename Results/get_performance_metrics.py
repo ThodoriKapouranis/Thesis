@@ -7,7 +7,7 @@ import xgboost as xgb
 
 sys.path.append('../Thesis')
 from Models.XGB import Batched_XGBoost
-
+from DatasetHelpers.Preprocessing import lee_filter
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
 
 FLAGS = flags.FLAGS
@@ -17,7 +17,7 @@ flags.DEFINE_string("ds", "hand", "hand or holdout dataset to use for evaluation
 flags.DEFINE_string("model_path", "/workspaces/Thesis/Results/Models/unet_scenario1_64", "'xgboost', 'unet', 'a-unet")
 flags.DEFINE_string("model", "NN", " 'xgb' or 'NN' ")
 flags.DEFINE_integer('xgb_batches', 12, 'batches to use for splitting xgboost training to fit in memory')
-
+flags.DEFINE_string("filter", None, "None / lee")
 
 flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
 flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
@@ -63,6 +63,16 @@ def main(x):
     # IGNORE:  when restoring a model from weights-only, create a model with the same architecture as the original model and then set its weights.
     model = None
     dataset = create_dataset(FLAGS)
+    
+    def identity(x):
+        return x     
+    
+    filter = identity
+    if FLAGS.filter == 'lee':
+        filter = lee_filter
+
+    print(filter)
+
     
     channels = 2
     if FLAGS.scenario == 2:
@@ -161,7 +171,7 @@ def main(x):
     if FLAGS.model == "xgb":
         
         def xgb_predictions(test_batches):
-            pred, tgt = model.predict_in_batches(test_batches)
+            pred, tgt = model.predict_in_batches(test_batches, filter=filter)
 
             pred = np.array(pred)
             tgt = np.array(tgt)

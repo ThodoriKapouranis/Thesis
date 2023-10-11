@@ -44,12 +44,12 @@ class Batched_XGBoost:
         
         self.model =  full_model
 
-    def predict_in_batches(self, batches:dict):
+    def predict_in_batches(self, batches:dict, filter:any):
         predictions = []
         truth = []
         for batch_idx in batches.keys():
             t1 = time.time()
-            x, y = self.__load_data(batches[batch_idx])
+            x, y = self.__load_data(batches[batch_idx], filter=filter)
             print( f'Batch {batch_idx} finished loading in {time.time() - t1} seconds')
             
             print("Starting batch prediction...")
@@ -74,7 +74,7 @@ class Batched_XGBoost:
         return chip
     
     # Better solution is to use a map to read the file names and replace with the squeezed data?
-    def __load_data(self, batch:dict, skip_missing_data=False, debug=False):
+    def __load_data(self, batch:dict, filter:any, skip_missing_data=False, debug=False):
         '''
         Takes a dictionary with keys {'x': [FILENAMES], 'y': [FILENAMES] } and loads the TIF filenames into an array.
 
@@ -112,7 +112,8 @@ class Batched_XGBoost:
             
             for scene in scenes:
                 data = rasterio.open(scene, 'r').read() # C, W, H
-                
+                data = filter(data)
+
                 # Visualize plot
                 if debug:
                     to_plot = data
@@ -121,6 +122,7 @@ class Batched_XGBoost:
 
                 channels, width, height = data.shape
                 data = np.reshape(data, (channels, width*height))
+                
                 data = np.transpose(data, (1,0))    
                 full_data = np.append(full_data, data, axis=1)
 
