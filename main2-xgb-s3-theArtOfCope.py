@@ -64,6 +64,7 @@ def main(x):
             full_data = np.zeros(shape=(512*512, 1))
             for scene in scenes:
                 data = rasterio.open(scene, 'r').read() # C, W, H
+                data = filter(data)
                 # S3 --> co-VV, co-VH, pre-VV, pre-VH, co-coh, pre-coh
                 channels, width, height = data.shape
                 data = np.reshape(data, (channels, width*height))
@@ -82,7 +83,6 @@ def main(x):
             # same as scene = scenes[0] because there will never be more than one target image.
             for scene in scenes:
                 data = rasterio.open(scene, 'r').read()
-                data = filter(data)
                 channels, width, height = data.shape
                 data = np.reshape(data, (width*height, channels) )
                 data = np.int32(data)
