@@ -243,21 +243,23 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC", baselin
             weights[ tgt_masked == k] = v
 
         # Remove batch
-        img = img[0,:,:,:]
+        ## Commenting this out so that legacy models work. What was the point of this?
+        # img = img[0,:,:,:]
 
         return (img, tgt_masked, weights)
 
     @tf.function
     def tf_read_sample(data_path:str) -> dict:
         [img, tgt, weight] = tf.py_function( read_sample, [data_path], [tf.float32, tf.float32, tf.float32])
-        # todo: These shapes need to be changed given scenario flags
+        # Adding None for batch size
+
         if format == "HWC":
-            img.set_shape((512, 512, channel_size))
+            img.set_shape((None, 512, 512, channel_size))
             tgt.set_shape((512, 512))
             weight.set_shape((512, 512))
         
         elif format == "CHW":
-            img.set_shape((channel_size, 512, 512))
+            img.set_shape((None, channel_size, 512, 512))
             tgt.set_shape((512, 512))
             weight.set_shape((512, 512))
 
