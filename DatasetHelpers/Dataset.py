@@ -101,7 +101,7 @@ def convert_to_tfds(ds:Dataset, channel_size:int, filter:any, format:str='HWC') 
     test_samples = []
     hand_samples = []
     
-    tf_read_sample = construct_read_sample_function(channel_size, filter=filter, format=format, )
+    tf_read_sample = construct_read_sample_function(channel_size, filter=filter, format=format)
 
     for x, y in zip(ds.x_train, ds.y_train): train_samples.append((*x, *y))
     for x, y in zip(ds.x_val, ds.y_val): val_samples.append((*x, *y))
@@ -207,9 +207,6 @@ def construct_read_sample_function(channel_size:int, filter, format:str = "HWC")
         if img.shape[1] > 2:
             img[0, 0:4, :, :] = filter(img[0, 0:4, :, :])
 
-
-            ##  ## RADIOMETRIC TERRAIN NORMALIZATION
-
         tgt_masked = np.ma.masked_array(tgt, mask=nans)
         
 
@@ -243,7 +240,7 @@ def construct_read_sample_function(channel_size:int, filter, format:str = "HWC")
 
         # Remove batch
         ## Commenting this out so that legacy models work. What was the point of this?
-        # img = img[0,:,:,:]
+        img = img[0,:,:,:]
 
         return (img, tgt_masked, weights)
 
@@ -253,12 +250,12 @@ def construct_read_sample_function(channel_size:int, filter, format:str = "HWC")
         # Adding None for batch size
 
         if format == "HWC":
-            img.set_shape((None, 512, 512, channel_size))
+            img.set_shape((512, 512, channel_size))
             tgt.set_shape((512, 512))
             weight.set_shape((512, 512))
         
         elif format == "CHW":
-            img.set_shape((None, channel_size, 512, 512))
+            img.set_shape((channel_size, 512, 512))
             tgt.set_shape((512, 512))
             weight.set_shape((512, 512))
 

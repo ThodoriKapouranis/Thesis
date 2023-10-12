@@ -180,8 +180,8 @@ def UNetCompiled(input_size=(512, 512, 2), n_filters=32, n_classes=2):
     inputs = Input(input_size)
     
     # Data augmentation layers
-    # inputs = RandomFlip()(inputs)
-    # inputs = RandomRotation(0.2)(inputs)
+    inputs = RandomFlip()(inputs)
+    inputs = RandomRotation(0.2)(inputs)
     
     # Encoder includes multiple convolutional mini blocks with different maxpooling, dropout and filter parameters
     # Observe that the filters are increasing as we go deeper into the network which will increasse the # channels of the image 

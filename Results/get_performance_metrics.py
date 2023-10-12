@@ -7,7 +7,7 @@ import xgboost as xgb
 
 sys.path.append('../Thesis')
 from Models.XGB import Batched_XGBoost
-from DatasetHelpers.Preprocessing import lee_filter
+from DatasetHelpers.Preprocessing import box_filter, lee_filter
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
 
 FLAGS = flags.FLAGS
@@ -70,6 +70,8 @@ def main(x):
     filter = identity
     if FLAGS.filter == 'lee':
         filter = lee_filter
+    if FLAGS.filter == 'box':
+        filter = box_filter
 
     print(filter)
 
@@ -82,7 +84,7 @@ def main(x):
 
     if FLAGS.model == "NN":
         model = tf.keras.models.load_model(FLAGS.model_path)
-        print(model.summary())
+        # print(model.summary())
         _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, filter=filter)
 
         ds_to_use = holdout_set if FLAGS.ds=="holdout" else hand_set

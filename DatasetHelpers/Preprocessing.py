@@ -22,7 +22,7 @@ import rasterio
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cv2 as cv
 
-def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
+def lee_filter(image:np.ndarray, size:int = 5) -> np.ndarray:
     """Applies lee filter to image. It is applied per channel.
 
     https://www.imageeprocessing.com/2014/08/lee-filter.html
@@ -65,7 +65,7 @@ def lee_filter(image:np.ndarray, size:int = 7) -> np.ndarray:
 #     return img_output
 
 
-def debug_mean_filter(image:np.ndarray, size:int=10) -> np.ndarray:
+def box_filter(image:np.ndarray, size:int=5) -> np.ndarray:
     avg_kernel = np.ones( shape=(size,size), dtype=np.float32) / (size**2)
     return cv.filter2D(image, -1, avg_kernel)
 

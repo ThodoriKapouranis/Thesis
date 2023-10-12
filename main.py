@@ -6,7 +6,7 @@ from absl import app, flags
 import numpy as np
 import tensorflow as tf
 from keras.metrics import MeanIoU
-from DatasetHelpers.Preprocessing import lee_filter
+from DatasetHelpers.Preprocessing import box_filter, lee_filter
 
 from config import validate_config
 from DatasetHelpers.Dataset import convert_to_tfds, create_dataset
@@ -71,6 +71,8 @@ def main(x):
     filter = identity
     if FLAGS.filter == 'lee':
         filter = lee_filter
+    if FLAGS.filter == 'box':
+        filter = box_filter
 
     print(filter)
 
@@ -181,7 +183,7 @@ def main(x):
             )
 
         if FLAGS.model == 'segformer':
-            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, filter=filter, 'CHW')
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, filter=filter, format='CHW')
             BATCH_SIZE = FLAGS.batch_size
             
             train_ds = (
