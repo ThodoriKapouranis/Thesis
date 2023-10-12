@@ -83,7 +83,7 @@ def main(x):
     if FLAGS.model == "NN":
         model = tf.keras.models.load_model(FLAGS.model_path)
         print(model.summary())
-        _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels)
+        _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, filter=filter)
 
         ds_to_use = holdout_set if FLAGS.ds=="holdout" else hand_set
 

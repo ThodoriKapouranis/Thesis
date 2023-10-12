@@ -86,7 +86,7 @@ class Dataset:
 
         return self.batches        
 
-def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC', baseline=False) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+def convert_to_tfds(ds:Dataset, channel_size:int, filter:any, format:str='HWC') -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     '''
     Returns the created datasets as multiple tf.data.Dataset classes.
     Returns:
@@ -101,7 +101,7 @@ def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC', baseline=Fal
     test_samples = []
     hand_samples = []
     
-    tf_read_sample = construct_read_sample_function(channel_size, format=format, baseline=baseline)
+    tf_read_sample = construct_read_sample_function(channel_size, filter=filter, format=format, )
 
     for x, y in zip(ds.x_train, ds.y_train): train_samples.append((*x, *y))
     for x, y in zip(ds.x_val, ds.y_val): val_samples.append((*x, *y))
@@ -128,7 +128,7 @@ def convert_to_tfds(ds:Dataset, channel_size:int, format:str='HWC', baseline=Fal
 
     return train_ds, val_ds, test_ds, hand_ds
 
-def construct_read_sample_function(channel_size:int, format:str = "HWC", baseline=False):
+def construct_read_sample_function(channel_size:int, filter, format:str = "HWC"):
     '''
     This function takes in options to adjust the dataset reading functions to accomodate different datasets.
 
@@ -198,15 +198,14 @@ def construct_read_sample_function(channel_size:int, format:str = "HWC", baselin
         if np.count_nonzero(nans) > 0:
             img = np.nan_to_num(img, nan=0.0)
 
-        if not baseline:
-            ##  ## BORDER NOISE CORRECTION
 
-            ##  ## SPECKLE FILTER
-            if img.shape[1] == 2:
-                img[0, :, :, :] = lee_filter(img[0, :, :, :])
+
+        #### APPLY SPECKLE FILTER
+        if img.shape[1] == 2:
+            img[0, :, :, :] = filter(img[0, :, :, :])
             
-            if img.shape[1] > 2:
-                img[0, 0:4, :, :] = lee_filter(img[0, 0:4, :, :])
+        if img.shape[1] > 2:
+            img[0, 0:4, :, :] = filter(img[0, 0:4, :, :])
 
 
             ##  ## RADIOMETRIC TERRAIN NORMALIZATION

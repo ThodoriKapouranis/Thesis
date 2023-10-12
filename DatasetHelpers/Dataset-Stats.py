@@ -57,7 +57,7 @@ def _test(x):
 
     dataset = create_dataset(FLAGS)
     
-    train_ds, test_ds, val_ds, hand_ds = convert_to_tfds(dataset, channel_size=2)
+    train_ds, test_ds, val_ds, hand_ds = convert_to_tfds(dataset, channel_size=2, filter=lambda x: x)
 
     ## Nan count for some reason i forgot why I did this
     # nan_count = train_ds.reduce({'count':np.int64(0), 'x':np.int64(0), 'y':np.int64(0)}, check_for_nan)

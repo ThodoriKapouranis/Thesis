@@ -6,6 +6,7 @@ from absl import app, flags
 import numpy as np
 import tensorflow as tf
 from keras.metrics import MeanIoU
+from DatasetHelpers.Preprocessing import lee_filter
 
 from config import validate_config
 from DatasetHelpers.Dataset import convert_to_tfds, create_dataset
@@ -38,6 +39,8 @@ flags.DEFINE_string('hand_s1_co', '/workspaces/Thesis/10m_hand/HandLabeled/S1Han
 flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD_Hand_Labeled', '(h) filepath of Sentinel-1 prevent data')
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
 
+flags.DEFINE_string("filter", None, "None / lee")
+
 # Model specific flags
 flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet', 'segformer'")
 flags.DEFINE_bool("baseline", False, "T/F for baseline. If true, it does not apply the new processing pipeline")
@@ -61,6 +64,16 @@ flags.DEFINE_string("savename", None, "Name to use to save the model")
 
 def main(x):
     validate_config(FLAGS)
+    
+    def identity(x):
+        return x     
+    
+    filter = identity
+    if FLAGS.filter == 'lee':
+        filter = lee_filter
+
+    print(filter)
+
     if FLAGS.scenario == 3:
         channel_size = 6
     elif FLAGS.scenario == 2:
@@ -100,7 +113,7 @@ def main(x):
         )
 
         if FLAGS.model == 'unet':
-            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC', baseline=FLAGS.baseline)
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, filter=filter)
             BATCH_SIZE = FLAGS.batch_size 
             # Set up datasets (Set batch size or else everything will break)
             train_ds = (
@@ -127,7 +140,7 @@ def main(x):
             )
 
         if FLAGS.model == "transunet":
-            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'HWC')
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, filter=filter)
             for img, tgt, wgt in train_ds.take(1):
                 print(img.shape, tgt.shape, wgt.shape)
 
@@ -168,7 +181,7 @@ def main(x):
             )
 
         if FLAGS.model == 'segformer':
-            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, 'CHW')
+            train_ds, val_ds, test_ds, hand_ds = convert_to_tfds(dataset, channel_size, filter=filter, 'CHW')
             BATCH_SIZE = FLAGS.batch_size
             
             train_ds = (
