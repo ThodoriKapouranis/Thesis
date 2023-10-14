@@ -83,10 +83,24 @@ def main(x):
         channels = 6
 
     if FLAGS.model == "NN":
+        BATCH_SIZE = 1 # For loader to make dimensions not break
+
         model = tf.keras.models.load_model(FLAGS.model_path)
-        # print(model.summary())
+        print(model.summary())
         _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, filter=filter)
 
+        holdout_set = (
+                holdout_set
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+        )
+
+        hand_set = (
+                hand_set
+                .batch(BATCH_SIZE)
+                .prefetch(tf.data.AUTOTUNE)
+        )
+        
         ds_to_use = holdout_set if FLAGS.ds=="holdout" else hand_set
 
         @tf.function
