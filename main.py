@@ -6,7 +6,7 @@ from absl import app, flags
 import numpy as np
 import tensorflow as tf
 from keras.metrics import MeanIoU
-from DatasetHelpers.Preprocessing import box_filter, lee_filter
+from DatasetHelpers.Preprocessing import PyRAT_rlf, box_filter, lee_filter
 
 from config import validate_config
 from DatasetHelpers.Dataset import convert_to_tfds, create_dataset
@@ -39,7 +39,7 @@ flags.DEFINE_string('hand_s1_co', '/workspaces/Thesis/10m_hand/HandLabeled/S1Han
 flags.DEFINE_string('hand_s1_pre', '/workspaces/Thesis/10m_hand/S1_Pre_Event_GRD_Hand_Labeled', '(h) filepath of Sentinel-1 prevent data')
 flags.DEFINE_string('hand_labels', '/workspaces/Thesis/10m_hand/HandLabeled/LabelHand', 'filepath of hand labelled data')
 
-flags.DEFINE_string("filter", None, "None / lee")
+flags.DEFINE_string("filter", None, "None / lee / rfl")
 
 # Model specific flags
 flags.DEFINE_string("model", None, "'xgboost', 'unet', 'transunet', 'segformer'")
@@ -73,6 +73,8 @@ def main(x):
         filter = lee_filter
     if FLAGS.filter == 'box':
         filter = box_filter
+    if FLAGS.filter == 'rfl':
+        filter = PyRAT_rlf
 
     print(filter)
 
