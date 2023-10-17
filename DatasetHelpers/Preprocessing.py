@@ -138,8 +138,8 @@ def PyRAT_rlf(image, *args, **kwargs):
         ampf1 = np.empty((9,) + span.shape)
         ampf2 = np.empty((9,) + span.shape)
         for k in range(9):
-            ampf1[k, ...] = sp.ndimage.filters.correlate(span ** 2, cbox[k, ...])
-            ampf2[k, ...] = sp.ndimage.filters.correlate(span, cbox[k, ...]) ** 2
+            ampf1[k, ...] = sp.ndimage.correlate(span ** 2, cbox[k, ...])
+            ampf2[k, ...] = sp.ndimage.correlate(span, cbox[k, ...]) ** 2
 
         # ---------------------------------------------
         # GRADIENT ESTIMATION
@@ -149,7 +149,7 @@ def PyRAT_rlf(image, *args, **kwargs):
         if method == 'original':
             xs = [+2, +2, 0, -2, -2, -2, 0, +2]
             ys = [0, +2, +2, +2, 0, -2, -2, -2]
-            samp = sp.ndimage.filters.uniform_filter(span, win // 2)
+            samp = sp.ndimage.uniform_filter(span, win // 2)
             grad = np.empty((8,) + span.shape)
             for k in range(8):
                 grad[k, ...] = np.abs(np.roll(np.roll(samp, ys[k], axis=0), xs[k], axis=1) / samp - 1.0)
@@ -179,10 +179,10 @@ def PyRAT_rlf(image, *args, **kwargs):
             varx = ((vary - mamp * sig2) / sfak).clip(0)
             kfac = varx / vary
             if np.iscomplexobj(array):
-                mamp = sp.ndimage.filters.correlate(array.real, dbox) + 1j * sp.ndimage.filters.convolve(array.imag,
+                mamp = sp.ndimage.correlate(array.real, dbox) + 1j * sp.ndimage.convolve(array.imag,
                                                                                                         dbox)
             else:
-                mamp = sp.ndimage.filters.correlate(array, dbox)
+                mamp = sp.ndimage.correlate(array, dbox)
             idx = np.argwhere(direc == l)
             out[:, :, idx[:, 0], idx[:, 1]] = (mamp + (array - mamp) * kfac)[:, :, idx[:, 0], idx[:, 1]]
 
