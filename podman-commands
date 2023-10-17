@@ -2,21 +2,70 @@
 ssh kapour@kahanctrl.ee.cooper.edu -p 31415
 
 ## Grabbing a terminal in kahan
-srun --nodes=1-1 --gres=gpu:titanrtx:1 --mem 1G --pty bash
-
+srun --nodes=1-1 --gres=gpu:titanrtx:1 --mem 60G --pty bash
+srun --nodes=1-1 --gres=gpu --mem 1G --pty bash
 ## Creating podman/docker image
 podman image build . --tag="thesis"
 podman image list 
 podman image rm {IMAGE NAME}
 
 ## Running docker container 
-podman run -it --rm --shm-size=24G --mount=type=bind,source=/zooper2/kapour,destination=/workspaces/ localhost/thesis /bin/bash
+podman run -it --rm --shm-size=64G --mount=type=bind,source=/zooper2/kapour,destination=/workspaces/ localhost/thesis /bin/bash
 
 ## Moving files from server to local
 scp -P 31415 -r  kapour@kahanctrl.ee.cooper.edu:/zooper2/kapour/Thesis/Results/Models/segformer-b1-s1-e60/ .\Results\Models\
-
 
 ##### XGB TESTING 10/03/23
 "summer-sun"
 python main.py --model='xgboost' --scenario=3 --savename="xgb-summer-sun" --xgb_batches='4'
 python main2-xgb-s3-theArtOfCope.py  --scenario=2 --savename='summer-sun-s2' --batches=2
+
+"frosty-night" - XGB LEE
+    python main2-xgb-s3-theArtOfCope.py  --scenario=1 --savename='frosty-night-s1' --batches=2 --filter=lee
+    python Results/get_performance_metrics.py --model='xgb' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/frosty-night-s1.json"  --xgb_batches=1 --ds='hand' --filter='lee'
+    python Results/get_performance_metrics.py --model='xgb' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/frosty-night-s1.json"  --xgb_batches=1 --ds='holdout' --filter='lee'
+
+    python main2-xgb-s3-theArtOfCope.py  --scenario=2 --savename='frosty-night-s2' --batches=2 --filter=lee
+    python Results/get_performance_metrics.py --model='xgb' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/frosty-night-s2.json"  --xgb_batches=1 --ds='hand' --filter='lee'
+    python Results/get_performance_metrics.py --model='xgb' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/frosty-night-s2.json"  --xgb_batches=1 --ds='holdout' --filter='lee'
+
+    python main2-xgb-s3-theArtOfCope.py  --scenario=3 --savename='frosty-night-s3' --batches=2 --filter=lee
+    python Results/get_performance_metrics.py --model='xgb' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/frosty-night-s3.json"  --xgb_batches=1 --ds='hand' --filter='lee'
+    python Results/get_performance_metrics.py --model='xgb' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/frosty-night-s3.json"  --xgb_batches=1 --ds='holdout' --filter='lee'
+
+"polished-night" - UNET LEE
+    [x] confirm that no-filter results match github
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/Polished-Night-S1/" --ds='hand' --filter='lee'
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/Polished-Night-S1/" --ds='holdout' --filter='lee'
+
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/Polished-Night-S1/" --ds='hand' --filter='lee'
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/Polished-Night-S1/" --ds='holdout' --filter='lee'
+
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/Polished-Night-S1/" --ds='hand' --filter='lee'
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/Polished-Night-S1/" --ds='holdout' --filter='lee'
+
+"spring-glitter" - XGB BOX
+    python main2-xgb-s3-theArtOfCope.py  --scenario=1 --savename='spring-glitter-s1' --batches=2 --filter=box
+    python Results/get_performance_metrics.py --model='xgb' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/spring-glitter-s1.json"  --xgb_batches=1 --ds='hand' --filter='box'
+    python Results/get_performance_metrics.py --model='xgb' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/spring-glitter-s1.json"  --xgb_batches=1 --ds='holdout' --filter='box'
+
+    python main2-xgb-s3-theArtOfCope.py  --scenario=2 --savename='spring-glitter-s2' --batches=2 --filter=box
+    python Results/get_performance_metrics.py --model='xgb' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/spring-glitter-s2.json"  --xgb_batches=1 --ds='hand' --filter='box'
+    python Results/get_performance_metrics.py --model='xgb' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/spring-glitter-s2.json"  --xgb_batches=1 --ds='holdout' --filter='box'
+
+    python main2-xgb-s3-theArtOfCope.py  --scenario=3 --savename='spring-glitter-s3' --batches=2 --filter=box
+    python Results/get_performance_metrics.py --model='xgb' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/spring-glitter-s3.json"  --xgb_batches=1 --ds='hand' --filter='box'
+    python Results/get_performance_metrics.py --model='xgb' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/spring-glitter-s3.json"  --xgb_batches=1 --ds='holdout' --filter='box'
+
+"cold-violet" - UNET BOX
+    python main.py --model="unet" --epochs=30 --scenario=1 --savename="cold-violet-s1" --filter='box' --batch_size=8
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/cold-violet-s1/" --ds='hand' --filter='box'
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/cold-violet-s1/" --ds='holdout' --filter='box'
+
+    python main.py --model="unet" --epochs=30 --scenario=2 --savename="cold-violet-s2" --filter='box' --batch_size=8
+    python Results/get_performance_metrics.py --model='NN' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/cold-violet-s2/" --ds='hand' --filter='box'
+    python Results/get_performance_metrics.py --model='NN' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/cold-violet-s2/" --ds='holdout' --filter='box'
+
+    python main.py --model="unet" --epochs=30 --scenario=3 --savename="cold-violet-s3" --filter='box' --batch_size=8
+    python Results/get_performance_metrics.py --model='NN' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/cold-violet-s3/" --ds='hand' --filter='box'
+    python Results/get_performance_metrics.py --model='NN' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/cold-violet-s3/" --ds='holdout' --filter='box'
