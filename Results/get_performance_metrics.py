@@ -72,6 +72,8 @@ def main(x):
         filter = lee_filter
     if FLAGS.filter == 'box':
         filter = box_filter
+    if FLAGS.filter == 'rfl':
+        filter = PyRAT_rlf
 
     print(filter)
 
