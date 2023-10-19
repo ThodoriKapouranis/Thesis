@@ -7,7 +7,7 @@ import xgboost as xgb
 
 sys.path.append('../Thesis')
 from Models.XGB import Batched_XGBoost
-from DatasetHelpers.Preprocessing import box_filter, lee_filter
+from DatasetHelpers.Preprocessing import PyRAT_rlf, box_filter, lee_filter
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
 
 FLAGS = flags.FLAGS
