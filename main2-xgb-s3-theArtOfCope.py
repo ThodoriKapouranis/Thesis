@@ -10,7 +10,7 @@ import rasterio
 from xgboost import XGBClassifier
 from DatasetHelpers.Dataset import create_dataset
 from absl import app, flags
-from DatasetHelpers.Preprocessing import lee_filter, box_filter
+from DatasetHelpers.Preprocessing import PyRAT_rlf, lee_filter, box_filter
 
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -50,10 +50,14 @@ def main(x):
     
     filter = identity
 
+    filter = identity
     if FLAGS.filter == 'lee':
         filter = lee_filter
     if FLAGS.filter == 'box':
         filter = box_filter
+    if FLAGS.filter == 'rfl':
+        filter = PyRAT_rlf
+
 
     print(filter)
     
