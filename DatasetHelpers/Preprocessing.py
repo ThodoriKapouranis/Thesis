@@ -1,16 +1,12 @@
 '''
-Functions defined for the preprocessing pipeline are defined here
-
-Looking to implement
-
--   Border noise corrections
--   Mono and Bitemporal Speckle filters (Lee, Refined Lee)
-
+Despeckling functions are all defined here
 '''
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 import logging
 import os
+import sys
 from typing import Tuple
 from absl import app, flags
 import scipy as sp
@@ -23,6 +19,13 @@ from sklearn.model_selection import train_test_split
 import rasterio
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cv2 as cv
+
+import pyximport
+pyximport.install()
+
+sys.path.append(os.path.abspath("/workspaces/Thesis/"))
+sys.path.append(os.path.abspath("/workspaces/Thesis/DatasetHelpers/"))
+from DatasetHelpers import Despeckle_extensions
 
 def lee_filter(image:np.ndarray, size:int = 5) -> np.ndarray:
     """Applies lee filter to image. It is applied per channel.
@@ -62,6 +65,7 @@ def box_filter(image:np.ndarray, size:int=5) -> np.ndarray:
     return cv.filter2D(image, -1, avg_kernel)
 
 def PyRAT_rlf(image, *args, **kwargs):
+    ## Adapted from https://github.com/birgander2/PyRAT/blob/master/pyrat/filter/Despeckle.py#L354C10-L354C10
 
     para = [
         {'var': 'win', 'value': 7, 'type': 'int', 'range': [3, 999], 'text': 'Window size'},
@@ -187,6 +191,131 @@ def PyRAT_rlf(image, *args, **kwargs):
             out[:, :, idx[:, 0], idx[:, 1]] = (mamp + (array - mamp) * kfac)[:, :, idx[:, 0], idx[:, 1]]
 
         filtered[c] = out
+    return filtered
+
+def PyRAT_improvedSigma(image, *args, **kwargs):
+    # Ported from https://github.com/birgander2/PyRAT/blob/b4236269c329d6941d01d1cd9a8689776650ff4e/pyrat/filter/Despeckle.py#L630C2-L630C2
+    # Parameters
+    win = [9,9]
+    looks = 1.0
+    sigma = 0.9
+    perc = 0.02 
+    var = 'amplitude'
+
+    def estimate_percentile(self, array, perc=98.0, type='amplitude', **kwargs):
+        if array.ndim == 3:  # polarimetric vector
+            if np.iscomplexobj(array) or type == "amplitude":
+                span = np.sum(np.abs(array) ** 2, axis=0)
+            else:
+                span = np.sum(np.abs(array), axis=0)
+        elif array.ndim == 4:  # covariance data
+            span = np.abs(np.trace(array, axis1=0, axis2=1))
+        else:  # single channel data
+            if np.iscomplexobj(array) or type == "amplitude":
+                span = np.abs(array) ** 2
+            else:
+                span = np.abs(array)
+        return np.percentile(span, perc)
+
+    def specklepdf(i, looks=1.0):
+        if i < 0.0:
+            return 0.0
+        else:
+            return ((looks ** looks) * (i ** (looks - 1.0))) / sp.special.gamma(looks) * np.exp(-looks * i)
+
+    def meanpdf(i, looks=1.0):
+        if i < 0.0:
+            return 0.0
+        else:
+            return ((looks ** looks) * (i ** (looks - 1.0))) / sp.special.gamma(looks) * np.exp(-looks * i) * i
+
+    def sigpdf(self, i, looks=1.0):
+        return (i - 1.0) ** 2 * self.specklepdf(i, looks=1.0)
+
+    def newsig(self, i1, i2, sigrng=0.9, looks=1.0):
+        return 1 / sigrng * sp.integrate.quad(self.sigpdf, i1, i2, args=(looks,))[0]
+
+    def sigmarange(self, i1, i2, looks=1.0):
+        return np.clip(sp.integrate.quad(self.specklepdf, i1, i2, args=(looks,))[0], 1e-10, 1.0)
+
+    def intmean(self, i1, i2, looks=1.0):
+        return 1.0 / self.sigmarange(i1, i2, looks) * sp.integrate.quad(self.meanpdf, i1, i2, args=(looks,))[0]
+
+    def optf(self, i, looks, sigr):
+        return (self.sigmarange(i[0], i[1], looks) - sigr) ** 2 + (self.intmean(i[0], i[1], looks) - 1.0) ** 2
+
+    def leeimproved(array, bounds=(1, 2), thres=10.0, looks=1.0, win=(7, 7), newsig=0.5, type='amplitude', **kwargs):
+        if array.ndim == 3:  # polarimetric vector
+            if np.iscomplexobj(array) or type == "amplitude":
+                array = np.abs(array) ** 2
+                type = "amplitude"
+            else:
+                array = np.abs(array)
+            span = np.sum(array, axis=0)
+            array = array[np.newaxis, ...]
+            type = "amplitude"
+        elif array.ndim == 4:  # covariance data
+            span = np.abs(np.trace(array, axis1=0, axis2=1))
+            type = "intensity"
+        else:  # single channel data
+            if np.iscomplexobj(array) or type == "amplitude":
+                array = np.abs(array) ** 2
+                type = "amplitude"
+            else:
+                array = np.abs(array)
+            span = array.copy()
+            array = array[np.newaxis, np.newaxis, ...]
+
+        array = Despeckle_extensions.cy_leeimproved(span, array, bounds=bounds, thres=thres, looks=looks, win=win, newsig=newsig)
+        array[~np.isfinite(array)] = 0.0
+        if type == "amplitude":
+            array[array < 0] = 0.0
+            array = np.sqrt(array)
+
+        return np.squeeze(array)
+
+def PyRAT_sigma(image, *args, **kwargs):
+    win = [7,7]
+    looks = np.float32(1.0)
+    datatype = 'amplitude'
+    blockprocess = True
+    blockoverlap = win[0]
+
+    filtered = np.zeros(image.shape, dtype=np.float32)
+
+    for c in range(image.shape[0]):
+        array = np.float32(image[c, :, :]) # <- Current Channel we are filtering on
+        if array.ndim == 3:  # polarimetric vector
+            if np.iscomplexobj(array) or type == "amplitude":
+                array = np.abs(array) ** 2
+                type = "amplitude"
+            else:
+                array = np.abs(array)
+            span = np.sum(array, axis=0)
+            array = array[np.newaxis, ...]
+            type = "amplitude"
+
+        elif array.ndim == 4:  # covariance data
+            span = np.abs(np.trace(array, axis1=0, axis2=1))
+            datatype = "intensity"
+        else:  # single channel data
+            if np.iscomplexobj(array) or datatype == "amplitude":
+                array = np.abs(array) ** 2
+                datatype = "amplitude"
+            else:
+                array = np.abs(array)
+            span = array.copy()
+            array = array[np.newaxis, np.newaxis, ...]
+        
+        array = Despeckle_extensions.cy_leesigma(span, array, looks=looks, win=win)
+        array[~np.isfinite(array)] = 0.0
+        
+        if datatype == "amplitude":
+            array[array < 0] = 0.0
+            array = np.sqrt(array)
+
+        filtered[c] = np.squeeze(array)
+    
     return filtered
 
 
@@ -486,9 +615,6 @@ def _test_refined():
             
         return filtered 
    
-
-    ## Adapted from https://github.com/birgander2/PyRAT/blob/master/pyrat/filter/Despeckle.py#L354C10-L354C10
-    
     s = 10
     sample = np.zeros(shape=(6,64,64)) + np.random.normal(0, 0.1, size=(6,64,64))
     
@@ -509,8 +635,32 @@ def _test_refined():
 
     fig.savefig(f'DatasetHelpers/pipeline-debugging/filters-function/refined-lee-test')
 
+def _test_sigma():
+    s = 10
+    sample = np.zeros(shape=(6,64,64)) + np.random.normal(0, 0.1, size=(6,64,64))
+    
+    sample[0, 0:s*1, 0:s*1] += 1
+    sample[1, s*1:s*2, s*1:s*2] += 1
+    sample[2, s*2:s*3, s*2:s*3] += 1
+    sample[3, s*3:s*4, s*3:s*4] += 1
+    sample[4, s*4:s*5, s*4:s*5] += 1
+    sample[5, s*5:s*6, s*5:s*6] += 1
+
+    filtered = PyRAT_sigma(sample)
+    print(filtered.shape)
+    
+    fig, axes = plt.subplots(2, 6, figsize=(15,5))
+
+    for i in range(6):
+        axes[0,i].imshow(sample[i, :, :], interpolation='none')
+        axes[1,i].imshow(filtered[i,:, :], interpolation='none')
+
+    fig.savefig(f'DatasetHelpers/pipeline-debugging/filters-function/sigma-lee-test')
+
+
+
 def main(x):
-    _test_refined()
+    _test_sigma()
 
 if __name__ == "__main__":
     app.run(main)
