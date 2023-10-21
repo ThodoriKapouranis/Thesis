@@ -6,7 +6,7 @@ from absl import app, flags
 import numpy as np
 import tensorflow as tf
 from keras.metrics import MeanIoU
-from DatasetHelpers.Preprocessing import PyRAT_rlf, box_filter, lee_filter
+from DatasetHelpers.Preprocessing import PyRAT_rlf, PyRAT_sigma, box_filter, lee_filter
 
 from config import validate_config
 from DatasetHelpers.Dataset import convert_to_tfds, create_dataset
@@ -75,6 +75,8 @@ def main(x):
         filter = box_filter
     if FLAGS.filter == 'rfl':
         filter = PyRAT_rlf
+    if FLAGS.filter == 'sigma':
+        filter = PyRAT_sigma
 
     print(filter)
 
