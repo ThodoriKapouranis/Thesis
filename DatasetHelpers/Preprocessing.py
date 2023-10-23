@@ -348,7 +348,7 @@ def frost_filter(image, d=2.0, k=5):
             
             # Broadcast distances shape to match original image (for vector computation)
             
-            b_undamped = var / mean*mean
+            b_undamped = var / (mean*mean + 1e-9)
             
             dk = k/2 # Delta Movement for figuring out bounds of window
             width, height = scene.shape
@@ -730,7 +730,7 @@ def _test_frost():
     sample[4, s*4:s*5, s*4:s*5] += 1
     sample[5, s*5:s*6, s*5:s*6] += 1
 
-    filtered = frost_filter(sample, d=1, k=7)
+    filtered = frost_filter(sample, d=3, k=7)
     print(filtered.shape)
     
     fig, axes = plt.subplots(2, 6, figsize=(15,5))
