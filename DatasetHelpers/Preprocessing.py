@@ -349,7 +349,7 @@ def frost_filter(image, d=2.0, k=5):
             # Broadcast distances shape to match original image (for vector computation)
             distances = np.broadcast_to(distances, (scene.shape[0], scene.shape[1], k, k))
             
-            b = np.broadcast_to( d * ( var / (mean*mean)), (k, k, 64, 64))
+            b = np.broadcast_to( d * ( var / (mean*mean)), (k, k, scene.shape[0], scene.shape[1]))
             b = np.transpose(b, (3,2,1,0))
             W = np.exp( -b * distances ) # Weights for all pixels in the window 
 
