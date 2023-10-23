@@ -337,6 +337,7 @@ def frost_filter(image, d=2.0, k=5):
             
             scene = image[c]
             mean = cv.filter2D(scene, -1, kernel=mean_filter)
+            print("HAS NAN:", np.isnan(mean).any())
             var = cv.filter2D(scene**2, -1, kernel=mean_filter) - mean**2
             
             # Create the distance from center pixel window
