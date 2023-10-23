@@ -7,7 +7,7 @@ import xgboost as xgb
 
 sys.path.append('../Thesis')
 from Models.XGB import Batched_XGBoost
-from DatasetHelpers.Preprocessing import PyRAT_rlf, PyRAT_sigma, box_filter, frost_filter, lee_filter
+from DatasetHelpers.Preprocessing import PyRAT_rlf, PyRAT_sigma, box_filter, fast_frost_filter, frost_filter, lee_filter
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
 
 FLAGS = flags.FLAGS
@@ -77,7 +77,7 @@ def main(x):
     if FLAGS.filter == 'sigma':
         filter = PyRAT_sigma
     if FLAGS.filter == "frost":
-        filter = frost_filter
+        filter = fast_frost_filter
         
     print(filter)
 

@@ -350,15 +350,15 @@ def frost_filter(image, d=2.0, k=5):
             
             b_undamped = var / (mean*mean + 1e-9)
             
-            dk = k/2 # Delta Movement for figuring out bounds of window
+            dk = k // 2 # Delta Movement for figuring out bounds of window
             width, height = scene.shape
             for i in range(height):
                 for j in range(width):
-                    up =  int(np.ceil(i-dk))
-                    down = int(np.floor(i+dk)) + 1 # +1 for indexing to be inclusive
+                    up =  i - dk
+                    down = i + dk
                     
-                    left = int(np.ceil(j-dk))
-                    right = int(np.floor(j+dk)) + 1 # +1 for indexing to be inclusive
+                    left = j - dk
+                    right = j + dk 
 
                     left = 0 if left<0 else left
                     right = width if right>width else right
@@ -366,7 +366,7 @@ def frost_filter(image, d=2.0, k=5):
                     up = 0 if up<0 else up
                     down = height if down>height else down
 
-                    window = scene[left:right, up:down]
+                    window = scene[left:right+1, up:down+1]
 
                     # Pad with 0s to match other shapes
                     window = to_shape(window, (k,k))
@@ -376,6 +376,51 @@ def frost_filter(image, d=2.0, k=5):
 
                     filtered_img[c,i,j] = np.sum(window * W) / np.sum(W)
             # filtered_img[c] = W[:,:,0,0]
+        return filtered_img
+
+def subwindow_kernel(n=0, k=5):
+    # Create a k by k kernel with index n being the only '1'
+    out = np.zeros(shape=(k**2))
+    out[n] = 1 
+    return np.reshape(out, (k,k))
+
+
+def fast_frost_filter(image, d=2.0, k=5):
+        assert k%2==1
+
+        mean_filter = np.ones( (k,k) ) / (k**2)
+        filtered_img = np.zeros(image.shape)
+        for c in range(image.shape[0]):
+            
+            scene = image[c]
+            mean = cv.filter2D(scene, -1, kernel=mean_filter)
+            var = cv.filter2D(scene**2, -1, kernel=mean_filter) - mean**2
+            
+            # Create the distance from center pixel window
+            distances = np.zeros( (k,k) )
+            ce = np.floor(k/2)  # (c,c) is the center pixel array index
+            for i in range(distances.shape[0]):
+                for j in range(distances.shape[1]):
+                    distances[i,j] = np.sqrt((i-ce)**2 + (j-ce)**2)
+            
+            distances = np.reshape(distances, (25,1,1))
+        
+            b = d * (var / (mean * mean + 1e-9) )
+            b = np.broadcast_to(b, (k**2, scene.shape[0], scene.shape[1]))
+            x = np.zeros( shape=(k**2, scene.shape[0], scene.shape[1]) )
+
+            W = np.exp(-b * distances)
+            
+            for n in range(k**2):
+                x[n] = cv.filter2D(scene, -1, subwindow_kernel(n, k))
+            
+
+
+            filtered_img[c] = np.sum(x*W, axis=0) / np.sum(W, axis=0)
+            
+
+            
+                
         return filtered_img
 
 def _test():
@@ -720,8 +765,8 @@ def _test_sigma():
 
 def _test_frost():
 
-    s = 10
-    sample = np.zeros(shape=(6,64,64)) + np.random.normal(0, .1, size=(6,64,64))
+    s = 51
+    sample = np.zeros(shape=(6,512,512)) + np.random.normal(0, .1, size=(6,512,512))
     
     sample[0, 0:s*1, 0:s*1] += 1
     sample[1, s*1:s*2, s*1:s*2] += 1
@@ -730,7 +775,7 @@ def _test_frost():
     sample[4, s*4:s*5, s*4:s*5] += 1
     sample[5, s*5:s*6, s*5:s*6] += 1
 
-    filtered = frost_filter(sample, d=3, k=7)
+    filtered = fast_frost_filter(sample, d=3, k=5)
     print(filtered.shape)
     
     fig, axes = plt.subplots(2, 6, figsize=(15,5))
