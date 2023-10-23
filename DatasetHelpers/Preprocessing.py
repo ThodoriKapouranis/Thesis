@@ -337,7 +337,6 @@ def frost_filter(image, d=2.0, k=5):
             
             scene = image[c]
             mean = cv.filter2D(scene, -1, kernel=mean_filter)
-            print("HAS NAN:", np.isnan(mean).any())
             var = cv.filter2D(scene**2, -1, kernel=mean_filter) - mean**2
             
             # Create the distance from center pixel window
@@ -348,12 +347,8 @@ def frost_filter(image, d=2.0, k=5):
                     distances[i,j] = np.sqrt( (i-ce)**2 + (j-ce)**2 )
             
             # Broadcast distances shape to match original image (for vector computation)
-            distances = np.broadcast_to(distances, (scene.shape[0], scene.shape[1], k, k))
             
-            b = np.broadcast_to( d * ( var / (mean*mean)), (k, k, scene.shape[0], scene.shape[1]))
-            b = np.transpose(b, (3,2,1,0))
-            W = np.exp( -b * distances ) # Weights for all pixels in the window 
-
+            b_undamped = var / mean*mean
             
             dk = k/2 # Delta Movement for figuring out bounds of window
             width, height = scene.shape
@@ -376,7 +371,10 @@ def frost_filter(image, d=2.0, k=5):
                     # Pad with 0s to match other shapes
                     window = to_shape(window, (k,k))
 
-                    filtered_img[c,i,j] = np.sum(window * W[i,j]) / np.sum(W[i,j])
+                    b = d * b_undamped[i,j]
+                    W = np.exp( -b * distances ) # Weights for all pixels in the window
+
+                    filtered_img[c,i,j] = np.sum(window * W) / np.sum(W)
             # filtered_img[c] = W[:,:,0,0]
         return filtered_img
 
@@ -732,7 +730,7 @@ def _test_frost():
     sample[4, s*4:s*5, s*4:s*5] += 1
     sample[5, s*5:s*6, s*5:s*6] += 1
 
-    filtered = frost_filter(sample, d=2, k=7)
+    filtered = frost_filter(sample, d=1, k=7)
     print(filtered.shape)
     
     fig, axes = plt.subplots(2, 6, figsize=(15,5))
