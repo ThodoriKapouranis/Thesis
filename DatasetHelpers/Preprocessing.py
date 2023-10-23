@@ -19,6 +19,7 @@ from sklearn.model_selection import train_test_split
 import rasterio
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import cv2 as cv
+from scipy.stats import variation
 
 import pyximport
 pyximport.install()
@@ -26,6 +27,15 @@ pyximport.install()
 sys.path.append(os.path.abspath("/workspaces/Thesis/"))
 sys.path.append(os.path.abspath("/workspaces/Thesis/DatasetHelpers/"))
 from DatasetHelpers import Despeckle_extensions
+
+def to_shape(a, shape):
+    y_, x_ = shape
+    y, x = a.shape
+    y_pad = (y_-y)
+    x_pad = (x_-x)
+    return np.pad(a,((y_pad//2, y_pad//2 + y_pad%2), 
+                     (x_pad//2, x_pad//2 + x_pad%2)),
+                  mode = 'constant')
 
 def lee_filter(image:np.ndarray, size:int = 5) -> np.ndarray:
     """Applies lee filter to image. It is applied per channel.
@@ -318,6 +328,56 @@ def PyRAT_sigma(image, *args, **kwargs):
     
     return filtered
 
+def frost_filter(image, d=2.0, k=5):
+        assert k%2==1
+
+        mean_filter = np.ones( (k,k) ) / (k**2)
+        filtered_img = np.zeros(image.shape)
+        for c in range(image.shape[0]):
+            
+            scene = image[c]
+            mean = cv.filter2D(scene, -1, kernel=mean_filter)
+            var = cv.filter2D(scene**2, -1, kernel=mean_filter) - mean**2
+            
+            # Create the distance from center pixel window
+            distances = np.zeros( (k,k) )
+            ce = np.floor(k/2)  # (c,c) is the center pixel array index
+            for i in range(distances.shape[0]):
+                for j in range(distances.shape[1]):
+                    distances[i,j] = np.sqrt( (i-ce)**2 + (j-ce)**2 )
+            
+            # Broadcast distances shape to match original image (for vector computation)
+            distances = np.broadcast_to(distances, (scene.shape[0], scene.shape[1], k, k))
+            
+            b = np.broadcast_to( d * ( var / (mean*mean)), (k, k, 64, 64))
+            b = np.transpose(b, (3,2,1,0))
+            W = np.exp( -b * distances ) # Weights for all pixels in the window 
+
+            
+            dk = k/2 # Delta Movement for figuring out bounds of window
+            width, height = scene.shape
+            for i in range(height):
+                for j in range(width):
+                    up =  int(np.ceil(i-dk))
+                    down = int(np.floor(i+dk)) + 1 # +1 for indexing to be inclusive
+                    
+                    left = int(np.ceil(j-dk))
+                    right = int(np.floor(j+dk)) + 1 # +1 for indexing to be inclusive
+
+                    left = 0 if left<0 else left
+                    right = width if right>width else right
+
+                    up = 0 if up<0 else up
+                    down = height if down>height else down
+
+                    window = scene[left:right, up:down]
+
+                    # Pad with 0s to match other shapes
+                    window = to_shape(window, (k,k))
+
+                    filtered_img[c,i,j] = np.sum(window * W[i,j]) / np.sum(W[i,j])
+            # filtered_img[c] = W[:,:,0,0]
+        return filtered_img
 
 def _test():
     from Dataset import create_dataset
@@ -650,6 +710,8 @@ def _test_sigma():
     print(filtered.shape)
     
     fig, axes = plt.subplots(2, 6, figsize=(15,5))
+    print(np.max(filtered))
+    filtered[filtered>100] = 0
 
     for i in range(6):
         axes[0,i].imshow(sample[i, :, :], interpolation='none')
@@ -657,10 +719,33 @@ def _test_sigma():
 
     fig.savefig(f'DatasetHelpers/pipeline-debugging/filters-function/sigma-lee-test')
 
+def _test_frost():
 
+    s = 10
+    sample = np.zeros(shape=(6,64,64)) + np.random.normal(0, .1, size=(6,64,64))
+    
+    sample[0, 0:s*1, 0:s*1] += 1
+    sample[1, s*1:s*2, s*1:s*2] += 1
+    sample[2, s*2:s*3, s*2:s*3] += 1
+    sample[3, s*3:s*4, s*3:s*4] += 1
+    sample[4, s*4:s*5, s*4:s*5] += 1
+    sample[5, s*5:s*6, s*5:s*6] += 1
+
+    filtered = frost_filter(sample, d=2, k=7)
+    print(filtered.shape)
+    
+    fig, axes = plt.subplots(2, 6, figsize=(15,5))
+    print(np.max(filtered))
+    filtered[filtered>100] = 0
+
+    for i in range(6):
+        axes[0,i].imshow(sample[i, :, :], interpolation='none')
+        axes[1,i].imshow(filtered[i,:, :], interpolation='none')
+
+    fig.savefig(f'DatasetHelpers/pipeline-debugging/filters-function/frost-test')
 
 def main(x):
-    _test_sigma()
+    _test_frost()
 
 if __name__ == "__main__":
     app.run(main)

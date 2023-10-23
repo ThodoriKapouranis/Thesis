@@ -10,7 +10,7 @@ import rasterio
 from xgboost import XGBClassifier
 from DatasetHelpers.Dataset import create_dataset
 from absl import app, flags
-from DatasetHelpers.Preprocessing import PyRAT_rlf, PyRAT_sigma, lee_filter, box_filter
+from DatasetHelpers.Preprocessing import PyRAT_rlf, PyRAT_sigma, frost_filter, lee_filter, box_filter
 
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -59,6 +59,8 @@ def main(x):
         filter = PyRAT_rlf
     if FLAGS.filter == 'sigma':
         filter = PyRAT_sigma
+    if FLAGS.filter == "frost":
+        filter = frost_filter
 
 
     print(filter)
