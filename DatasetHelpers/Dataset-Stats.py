@@ -64,12 +64,27 @@ def _test(x):
     # print(nan_count)
 
     ## Class count
-    label_distribution = train_ds.reduce(
+    dist1 = train_ds.reduce(
+        initial_state = {'count':np.int64(0), '0':np.int64(0), '1':np.int64(0)},
+        reduce_func = class_count
+    ) 
+
+    dist2 = test_ds.reduce(
         initial_state = {'count':np.int64(0), '0':np.int64(0), '1':np.int64(0)},
         reduce_func = class_count
     )
 
-    print(label_distribution)
+    dist3 = val_ds.reduce(
+        initial_state = {'count':np.int64(0), '0':np.int64(0), '1':np.int64(0)},
+        reduce_func = class_count
+    )
+
+    dist4 = hand_ds.reduce(
+        initial_state = {'count':np.int64(0), '0':np.int64(0), '1':np.int64(0)},
+        reduce_func = class_count
+    )
+
+    print(dist1, dist2, dist3, dist4)
 
 
 if __name__ == "__main__":

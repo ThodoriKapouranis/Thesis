@@ -69,3 +69,43 @@ python main2-xgb-s3-theArtOfCope.py  --scenario=2 --savename='summer-sun-s2' --b
     python main.py --model="unet" --epochs=30 --scenario=3 --savename="cold-violet-s3" --filter='box' --batch_size=8
     python Results/get_performance_metrics.py --model='NN' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/cold-violet-s3/" --ds='hand' --filter='box'
     python Results/get_performance_metrics.py --model='NN' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/cold-violet-s3/" --ds='holdout' --filter='box'
+
+
+"floral-voice" - XGB RLF
+    python main2-xgb-s3-theArtOfCope.py  --scenario=1 --savename='floral-voice-s1' --batches=2 --filter=rfl
+    python Results/get_performance_metrics.py --model='xgb' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/floral-voice-s1.json"  --xgb_batches=1 --ds='hand' --filter='rfl'
+    python Results/get_performance_metrics.py --model='xgb' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/floral-voice-s1.json"  --xgb_batches=1 --ds='holdout' --filter='rfl'
+
+    python main2-xgb-s3-theArtOfCope.py  --scenario=2 --savename='floral-voice-s2' --batches=2 --filter=rfl
+    python Results/get_performance_metrics.py --model='xgb' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/floral-voice-s2.json"  --xgb_batches=1 --ds='hand' --filter='rfl'
+    python Results/get_performance_metrics.py --model='xgb' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/floral-voice-s2.json"  --xgb_batches=1 --ds='holdout' --filter='rfl'
+
+
+    python main2-xgb-s3-theArtOfCope.py  --scenario=3 --savename='floral-voice-s3' --batches=2 --filter=rfl
+    python Results/get_performance_metrics.py --model='xgb' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/floral-voice-s3.json"  --xgb_batches=1 --ds='hand' --filter='rfl'
+    python Results/get_performance_metrics.py --model='xgb' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/floral-voice-s3.json"  --xgb_batches=1 --ds='holdout' --filter='rfl'
+
+
+"wild-lab" - UNET RLF
+    python main.py --scenario=1 --model="unet" --epochs=30 --savename='wild-lab-s1' --filter='rfl' --batch_size=8
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/wild-lab-s1/" --ds='hand' --filter='rfl'
+    python Results/get_performance_metrics.py --model='NN' --scenario=1 --model_path="/workspaces/Thesis/Results/Models/wild-lab-s1/" --ds='holdout' --filter='rfl'
+
+    python main.py --scenario=2 --model="unet" --epochs=30 --savename='wild-lab-s2' --filter='rfl' --batch_size=8
+    python Results/get_performance_metrics.py --model='NN' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/wild-lab-s2/" --ds='hand' --filter='rfl'
+    python Results/get_performance_metrics.py --model='NN' --scenario=2 --model_path="/workspaces/Thesis/Results/Models/wild-lab-s2/" --ds='holdout' --filter='rfl'
+
+    python main.py --scenario=3 --model="unet" --epochs=30 --savename='wild-lab-s3' --filter='rfl' --batch_size=8
+    python Results/get_performance_metrics.py --model='NN' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/wild-lab-s3/" --ds='hand' --filter='rfl'
+    python Results/get_performance_metrics.py --model='NN' --scenario=3 --model_path="/workspaces/Thesis/Results/Models/wild-lab-s3/" --ds='holdout' --filter='rfl'
+
+"help-me" - XGB FROST
+python main2-xgb-s3-theArtOfCope.py  --scenario=1 --savename='mute-mud-s1' --batches=2 --filter=frost
+python main2-xgb-s3-theArtOfCope.py  --scenario=2 --savename='mute-mud-s2' --batches=2 --filter=frost
+python main2-xgb-s3-theArtOfCope.py  --scenario=3 --savename='mute-mud-s3' --batches=2 --filter=frost
+
+"baldurs-gate" - UNET FROST
+pip install cython
+python main.py --scenario=1 --model="unet" --epochs=30 --savename='baldurs-gate-s1' --filter='frost' --batch_size=8
+python main.py --scenario=2 --model="unet" --epochs=30 --savename='baldurs-gate-s2' --filter='frost' --batch_size=8
+python main.py --scenario=3 --model="unet" --epochs=30 --savename='baldurs-gate-s3' --filter='frost' --batch_size=8
