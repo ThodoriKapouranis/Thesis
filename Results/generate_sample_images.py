@@ -7,9 +7,10 @@ import tensorflow as tf
 from tensorflow import keras
 from transunet import TransUNet
 import sys
+
+from DatasetHelpers.Preprocessing import PyRAT_rlf, PyRAT_sigma, box_filter, fast_frost_filter, lee_filter
 sys.path.append('../Thesis')
 from DatasetHelpers.Dataset import create_dataset, convert_to_tfds
-from transformers import SegformerConfig, TFSegformerForSemanticSegmentation
 
 FLAGS = flags.FLAGS
 flags.DEFINE_bool("debug", False, "Set logging level to debug")
@@ -36,7 +37,8 @@ def main(x):
     model = tf.keras.Model()
     architecture = FLAGS.model_path.split('/')[-2].split('-')[0]
     if architecture == "segformer":
-        model = TFSegformerForSemanticSegmentation.from_pretrained(FLAGS.model_path)
+        ... # Not using segformer anymore
+        # model = TFSegformerForSemanticSegmentation.from_pretrained(FLAGS.model_path)
     else:
         model = tf.keras.models.load_model(FLAGS.model_path)
 
@@ -45,12 +47,7 @@ def main(x):
         model_name = FLAGS.model_path.split('/')[-2]
     
     print(model.summary())
-    try:
-        os.mkdir(f"/workspaces/Thesis/Results/Sample images/{model_name}/")
-    except:
-        pass
-
-    # print(model.summary())
+    
     dataset = create_dataset(FLAGS)
     channels = 2
     if FLAGS.scenario == 2:
@@ -58,6 +55,31 @@ def main(x):
     elif FLAGS.scenario == 3:
         channels = 6
     
+    # Create folder ready for outputs
+    try:
+        os.mkdir(f"/workspaces/Thesis/Results/Sample images/{model_name}/")
+    except:
+        pass
+
+    # Prepare Filters for each type 
+    def identity(x):
+        return x     
+    
+    filter = identity
+    if FLAGS.filter == 'lee':
+        filter = lee_filter
+    if FLAGS.filter == 'box':
+        filter = box_filter
+    if FLAGS.filter == 'rfl':
+        filter = PyRAT_rlf
+    if FLAGS.filter == 'sigma':
+        filter = PyRAT_sigma
+    if FLAGS.filter == "frost":
+        filter = fast_frost_filter
+        
+    print(filter)
+
+
     ds_format = "CHW" if architecture == "segformer" else "HWC"
 
     _, _, holdout_set, hand_set = convert_to_tfds(dataset, channels, ds_format)
@@ -79,6 +101,7 @@ def main(x):
             pred = np.transpose(pred, axes=[1,2,0]) # Convert to HWC
             tgt = np.transpose(tgt, axes=[1,2,0]) # Convert to HWC
             pred = tf.image.resize(pred, size=(512,512))
+
         else:
             logits = model(img)
             print(logits.shape)

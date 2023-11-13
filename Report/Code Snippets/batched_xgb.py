@@ -1,14 +1,3 @@
-from collections import defaultdict
-import time
-from matplotlib import pyplot as plt
-import numpy as np
-import rasterio
-from xgboost import XGBClassifier
-from dataclasses import dataclass, field
-from absl import app, flags
-
-XGB_POS_WEIGHT = 6.7233518222
-
 @dataclass
 class Batched_XGBoost:
     model: any = field(init=False)
@@ -167,31 +156,3 @@ class Batched_XGBoost:
         print(x.shape, y.shape)
 
         return x, y
-
-def main(x):
-    _test(x)
-
-def _test(x):
-    from DatasetHelpers.Dataset import Dataset, create_dataset, index_dataset
-
-    FLAGS = flags.FLAGS
-    flags.DEFINE_bool("debug", False, "Set logging level to debug")
-    flags.DEFINE_integer("scenario", 1, "Training data scenario. \n\t 1: Only co_event \n\t 2: coevent & preevent \n\t 3: coevent & preevent & coherence")
-    flags.DEFINE_string("model", "xgboost", "'xgboost', 'unet', 'a-unet")
-    flags.DEFINE_string('s1_co', '/workspaces/Thesis/10m_data/s1_co_event_grd', 'filepath of Sentinel-1 coevent data')
-    flags.DEFINE_string('s1_pre', '/workspaces/Thesis/10m_data/s1_pre_event_grd', 'filepath of Sentinel-1 prevent data')
-    flags.DEFINE_string('hand_co', '/workspaces/Thesis/10m_data/coherence/hand_labeled/co_event', 'filepath of handlabelled coevent data')
-    flags.DEFINE_string('hand_pre', '/workspaces/Thesis/10m_data/coherence/hand_labeled/pre_event', 'filepath of handlabelled preevent data')
-    flags.DEFINE_string('s2_weak', '/workspaces/Thesis/10m_data/s2_labels', 'filepath of S2-weak labelled data')
-    flags.DEFINE_string('coh_co', '/workspaces/Thesis/10m_data/coherence/co_event', 'filepath of coherence coevent data')
-    flags.DEFINE_string('coh_pre', '/workspaces/Thesis/10m_data/coherence/pre_event', 'filepath of coherence prevent data')
-
-    dataset = create_dataset(FLAGS)
-    batches = dataset.generate_batches(20)
-    model = Batched_XGBoost()
-    model.train_in_batches(batches)
-
-if __name__ == "__main__":
-    app.run(main)
-
-
